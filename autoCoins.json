@@ -1,0 +1,31 @@
+[
+    {
+        "version": 1,
+        "max1hrPercent": 5,
+        "max4hrPercent": 5,
+        "max24hrPercent": 10,
+        "minAthPercent": 5,
+        "minAge": 14,
+        "refresh": 15,
+        "proxy": "",
+        "proxyUser": "",
+        "proxyPass": "",
+        "discord": "",
+        "mentionOnError": false,
+        "blackList": [
+            "BTCUSDT", "ETHUSDT", "YFIUSDT", "DEFIUSDT", "DOGEUSDT"
+        ],
+        "cooldownHrs": 4,
+        "googleApiKey": "",
+        "marginAssets": [
+            "USDT"
+        ],
+        "filters": {
+            "blacklist": true,
+            "margin_assets": true,
+            "google_sheet_permitted": false,
+            "google_sheet_safe": false,
+            "wickhunter_db": false
+        }
+    }
+]
