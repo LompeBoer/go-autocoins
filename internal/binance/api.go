@@ -37,6 +37,8 @@ const (
 	ExchangeInfoWeight     = 10.0
 	KlineWeight            = 4.35 // This should be 1 according to the Binance API documentation.
 	WeightEstimationBuffer = 1.1  // WeightEstimationBuffer percentage of `EstimatedWeightUsage` to use in rate limit.
+	MinimumWeightLimit     = 0.5  // MinimumWeightLimit percentage for minimum weight limit warning.
+	MaximumWeightLimit     = 1.0  // MaximumWeightLimit percentage for maximum weight limit warning.
 )
 
 type BinanceAPIParams struct {
@@ -440,8 +442,14 @@ func FilenameForURL(url string) string {
 // There should be a buffer left so the WH bot still has room to do its thing.
 func (a *BinanceAPI) CheckForWeightLimit() bool {
 	limit := float64(a.EstimatedWeightUsage) * WeightEstimationBuffer
-	if a.WeightLimit != 0 && limit > float64(a.WeightLimit) {
-		limit = float64(a.WeightLimit)
+	if a.WeightLimit != 0 {
+		maxLimit := float64(a.WeightLimit) * MaximumWeightLimit
+		minLimit := float64(a.WeightLimit) * MinimumWeightLimit
+		if limit > maxLimit {
+			limit = maxLimit
+		} else if limit < minLimit {
+			limit = minLimit
+		}
 	}
 	log.Printf("Binance API Weight - Used: %d Estimated: %d Limit: %.0f\n", a.UsedWeight, a.EstimatedWeightUsage, limit)
 	return float64(a.EstimatedWeightUsage+a.UsedWeight) > limit
