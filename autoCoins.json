@@ -22,10 +22,10 @@
         ],
         "filters": {
             "blacklist": true,
-            "margin_assets": true,
-            "google_sheet_permitted": false,
-            "google_sheet_safe": false,
-            "wickhunter_db": false
+            "marginAssets": true,
+            "googleSheetPermitted": false,
+            "googleSheetSafe": false,
+            "wickhunterDB": false
         }
     }
 ]

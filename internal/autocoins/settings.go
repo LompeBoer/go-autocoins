@@ -8,10 +8,10 @@ import (
 
 type SettingsFilters struct {
 	Blacklist            bool `json:"blacklist"`
-	MarginAssets         bool `json:"margin_assets"`
-	GoogleSheetPermitted bool `json:"google_sheet_permitted"`
-	GoogleSheetSafe      bool `json:"google_sheet_safe"`
-	WickHunterDB         bool `json:"wickhunter_db"`
+	MarginAssets         bool `json:"marginAssets"`
+	GoogleSheetPermitted bool `json:"googleSheetPermitted"`
+	GoogleSheetSafe      bool `json:"googleSheetSafe"`
+	WickHunterDB         bool `json:"wickhunterDB"`
 }
 
 type Settings struct {
@@ -126,9 +126,5 @@ func (s *Settings) ValidateSettings() {
 	}
 	if s.Refresh < 1 {
 		s.Refresh = 1
-	}
-	if s.GoogleApiKey == "" {
-		s.Filters.GoogleSheetPermitted = false
-		s.Filters.GoogleSheetSafe = false
 	}
 }
