@@ -37,13 +37,13 @@ See her page for more great WH scripts.
   - **discord**: (optional) your discord webhook.
   - **mentionOnError**: use @here mention on Discord when an error occurs. (default = true)
   - **blacklist**: permanently blacklisted coins.
-  - **googleApiKey**: (optional) Google API Key to access [WH Pairs list - STP Todd](https://docs.google.com/spreadsheets/d/1XWadBbVkbdi5Ub7bFhCcAhqpHiQXBETbeTg644pkTdI/edit#gid=1034827699). [[*](#google-docs-api)]
+  - **googleApiKey**: (optional) Google API Key to access [WH Pairs list - STP Todd](https://docs.google.com/spreadsheets/d/1XWadBbVkbdi5Ub7bFhCcAhqpHiQXBETbeTg644pkTdI/). [[*](#google-docs-api)]
   - **marginAssets**: list of margin assets to trade. Use empty list to not filter out any pairs (default = ["USDT"]).
   - **filters**: this controls which filters are used
     - **blacklist**: Enable/disable the _blacklist_ (default = true).
     - **margin_assets**: Enable/disable checking the _marginAssets_  (default = true).
-    - **google_sheet_permitted**: Enable/disable the Google Sheet _WH Pairs list_ permitted list (default = false). Note: Requires _googleApiKey_.
-    - **google_sheet_safe**: Enable/disable the Google Sheet _WH Pairs list_ safe list (default = false). Note: Requires _googleApiKey_.
+    - **google_sheet_permitted**: Enable/disable the Google Sheet _WH Pairs list_ permitted list (default = false).
+    - **google_sheet_safe**: Enable/disable the Google Sheet _WH Pairs list_ safe list (default = false).
     - **wickhunter_db**: Enable/disable using the default WickHunter bot coin list (default = false).
 
 - Double-click on the executable or run it from the terminal.
@@ -54,6 +54,8 @@ You can supply flags at startup. These are optional.
 - **-noconfig**: use default settings without a config file
 - **-storage=path**: path to the storage file for WickHunter bot (default = storage.db).
 - **-version**: prints the current go-autocoins version.
+- **-pairs**: set pairs to permitted from the Google Sheet Pairs List and exits the program (Note: first close WH bot)
+- **-safepairs**: set safe pairs to permitted from the Google Sheet Pairs List and exits the program (Note: first close WH bot)
 
 ## Difference with PowerShell autoCoins
 ### Missing
@@ -75,6 +77,7 @@ You can supply flags at startup. These are optional.
 - Reading of WH v1.0 storage.db file. Currently it is not possible for WH bot to pickup changes made by AutoCoins. So when using _version_ 1 it only sends messages to Discord and does **not** update the WH bot. 
 
 ## Google Docs API
+**Update** You can leave this empty since v0.9.9 of AutoCoins
 Using the Google Docs API requires an API Key.  
 See https://developers.google.com/docs/api/how-tos/authorizing#APIKey on how to create the key.  
 (Optional) Restrict the access to the `Google Sheets API` and restrict to the IP Address where AutoCoins is running.  

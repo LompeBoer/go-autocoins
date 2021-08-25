@@ -17,7 +17,7 @@ import (
 	"github.com/LompeBoer/go-autocoins/internal/discord"
 )
 
-const VersionNumber = "0.9.8"
+const VersionNumber = "0.9.9"
 
 func main() {
 	flags := initFlags()
@@ -30,12 +30,16 @@ func main() {
 	defer db.Close()
 
 	autoCoins := initAutoCoins(db, settings, flags.StorageFilename)
-	go autoCoins.Run()
+	if flags.SetPairs || flags.SetSafePairs {
+		autoCoins.SetPairs(flags.SetSafePairs)
+	} else {
+		go autoCoins.Run()
 
-	stop := make(chan os.Signal)
-	signal.Notify(stop, os.Interrupt)
-	<-stop
-	autoCoins.Stop()
+		stop := make(chan os.Signal)
+		signal.Notify(stop, os.Interrupt)
+		<-stop
+		autoCoins.Stop()
+	}
 	log.Printf("Exiting autocoins")
 }
 
@@ -74,6 +78,8 @@ type StartupFlags struct {
 	NoConfig        bool
 	ConfigFilename  string
 	StorageFilename string
+	SetPairs        bool
+	SetSafePairs    bool
 }
 
 func initFlags() StartupFlags {
@@ -81,6 +87,8 @@ func initFlags() StartupFlags {
 	noConfig := flag.Bool("noconfig", false, "use default settings without a config file")
 	configFilename := flag.String("config", "autoCoins.json", "path to the config file")
 	storageFilename := flag.String("storage", "storage.db", "path to the storage file")
+	setPairs := flag.Bool("pairs", false, "set pairs to permitted from the Google Sheet Pairs List and exits the program")
+	setSafePairs := flag.Bool("safepairs", false, "set safe pairs to permitted from the Google Sheet Pairs List and exits the program")
 	flag.Parse()
 
 	if *version {
@@ -101,5 +109,7 @@ func initFlags() StartupFlags {
 		NoConfig:        *noConfig,
 		ConfigFilename:  *configFilename,
 		StorageFilename: *storageFilename,
+		SetPairs:        *setPairs,
+		SetSafePairs:    *setSafePairs,
 	}
 }
