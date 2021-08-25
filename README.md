@@ -77,7 +77,8 @@ You can supply flags at startup. These are optional.
 - Reading of WH v1.0 storage.db file. Currently it is not possible for WH bot to pickup changes made by AutoCoins. So when using _version_ 1 it only sends messages to Discord and does **not** update the WH bot. 
 
 ## Google Docs API
-**Update** You can leave this empty since v0.9.9 of AutoCoins
+**Update** You can leave this empty since v0.9.9 of AutoCoins  
+  
 Using the Google Docs API requires an API Key.  
 See https://developers.google.com/docs/api/how-tos/authorizing#APIKey on how to create the key.  
 (Optional) Restrict the access to the `Google Sheets API` and restrict to the IP Address where AutoCoins is running.  
