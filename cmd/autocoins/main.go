@@ -17,7 +17,7 @@ import (
 	"github.com/LompeBoer/go-autocoins/internal/discord"
 )
 
-const VersionNumber = "0.9.10"
+const VersionNumber = "0.9.11"
 
 func main() {
 	flags := initFlags()
@@ -44,6 +44,10 @@ func main() {
 }
 
 func initAutoCoins(db database.DatabaseService, settings *autocoins.Settings, storageFilename string) autocoins.AutoCoins {
+	discordHook := discord.DiscordWebHook{
+		Enabled: true,
+		URL:     settings.Discord,
+	}
 	autoCoins := autocoins.AutoCoins{
 		Settings: *settings,
 		API: binance.NewAPI(binance.BinanceAPIParams{
@@ -54,14 +58,20 @@ func initAutoCoins(db database.DatabaseService, settings *autocoins.Settings, st
 			DebugSaveResponses: false,
 			DebugReadResponses: false,
 		}),
-		Discord: discord.DiscordWebHook{
-			Enabled: true,
-			URL:     settings.Discord,
-		},
 		DB:                         db,
 		MaxFailedSymbolsPercentage: 0.1,
 		StorageFilename:            storageFilename,
 		DisableWrite:               settings.Version == 1, // Because WickHunter does not yet pickup changes to the storage.db file disable writing for v1.0.
+		OutputWriter: autocoins.OutputWriter{
+			Writers: []autocoins.Writer{
+				&autocoins.ConsoleOutputWriter{},
+				&autocoins.DiscordOutputWriter{
+					WebHook:        discordHook,
+					Version:        VersionNumber,
+					MentionOnError: settings.MentionOnError,
+				},
+			},
+		},
 	}
 	return autoCoins
 }

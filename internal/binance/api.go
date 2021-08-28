@@ -459,3 +459,13 @@ func (a *BinanceAPI) CheckForWeightLimit() bool {
 func (a *BinanceAPI) PauseForWeightWarning() {
 	a.pauseRequest(time.Minute)
 }
+
+// RateLimitChecks sets the rate limit estimation and pauses execution when estimated weight will be exceeded.
+func (a *BinanceAPI) RateLimitChecks(symbolCount int) {
+	a.EstimatedWeightUsage = int((float64(symbolCount) * 3.0 * KlineWeight) + TickerWeight + ExchangeInfoWeight)
+	if a.CheckForWeightLimit() {
+		log.Println("Weight warning! Will pause for one minute")
+		a.PauseForWeightWarning()
+		log.Println("Finished weight wait")
+	}
+}

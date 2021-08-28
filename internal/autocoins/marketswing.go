@@ -2,7 +2,6 @@ package autocoins
 
 import (
 	"fmt"
-	"io"
 	"math"
 )
 
@@ -25,7 +24,7 @@ type MarketSwingValues struct {
 	MaxCoin    string
 }
 
-func (a *AutoCoins) marketSwingValues(objects []SymbolDataObject) []MarketSwing {
+func CalculateMarketSwing(objects []SymbolDataObject) []MarketSwing {
 	marketSwing1 := MarketSwing{Timeframe: "1hr"}
 	marketSwing4 := MarketSwing{Timeframe: "4hrs"}
 	marketSwing24 := MarketSwing{Timeframe: "24hrs"}
@@ -34,19 +33,19 @@ func (a *AutoCoins) marketSwingValues(objects []SymbolDataObject) []MarketSwing 
 		if object.APIFailed {
 			continue
 		}
-		marketSwing1.ProcessObject(object.Percent1HourValue[0], object.Symbol.Name)
-		marketSwing4.ProcessObject(object.Percent4HourValue, object.Symbol.Name)
-		marketSwing24.ProcessObject(object.Percent24HourValue, object.Symbol.Name)
+		marketSwing1.processObject(object.Percent1HourValue[0], object.Symbol.Name)
+		marketSwing4.processObject(object.Percent4HourValue, object.Symbol.Name)
+		marketSwing24.processObject(object.Percent24HourValue, object.Symbol.Name)
 	}
 
-	marketSwing1.Calculate()
-	marketSwing4.Calculate()
-	marketSwing24.Calculate()
+	marketSwing1.calculate()
+	marketSwing4.calculate()
+	marketSwing24.calculate()
 
 	return []MarketSwing{marketSwing1, marketSwing4, marketSwing24}
 }
 
-func (m *MarketSwing) ProcessObject(percentValue float64, symbol string) {
+func (m *MarketSwing) processObject(percentValue float64, symbol string) {
 	if percentValue < 0 {
 		m.Negative.CoinCount++
 		m.Negative.CountTotal += percentValue
@@ -65,7 +64,7 @@ func (m *MarketSwing) ProcessObject(percentValue float64, symbol string) {
 	}
 }
 
-func (m *MarketSwing) Calculate() {
+func (m *MarketSwing) calculate() {
 	m.Positive.Average = m.Positive.CountTotal / float64(m.Positive.CoinCount)
 	m.Negative.Average = m.Negative.CountTotal / float64(m.Negative.CoinCount)
 	m.CountTotal = m.Positive.CoinCount + m.Negative.CoinCount
@@ -74,19 +73,8 @@ func (m *MarketSwing) Calculate() {
 
 	m.Swing = m.Positive.Percent - m.Negative.Percent
 	if m.Swing < 0 {
-		m.Swing = math.Abs(m.Swing)
-		m.SwingMood = fmt.Sprintf("%.0f%% Bearish", m.Swing)
+		m.SwingMood = fmt.Sprintf("%.0f%% Bearish", math.Abs(m.Swing))
 	} else {
 		m.SwingMood = fmt.Sprintf("%.0f%% Bullish", m.Swing)
 	}
-}
-
-func (m *MarketSwing) WriteString(w io.Writer, applyStyle bool) {
-	bold := ""
-	if applyStyle {
-		bold = "**"
-	}
-	fmt.Fprintf(w, "%sMarketSwing - Last %s%s - %s\n", bold, m.Timeframe, bold, m.SwingMood)
-	fmt.Fprintf(w, "| %.0f%% Long | %d Coins | Avg %.2f%% | Max %.2f%% %s\n", m.Positive.Percent, m.Positive.CoinCount, m.Positive.Average, m.Positive.Max, m.Positive.MaxCoin)
-	fmt.Fprintf(w, "| %.0f%% Short | %d Coins | Avg %.2f%% | Max %.2f%% %s\n", m.Negative.Percent, m.Negative.CoinCount, m.Negative.Average, m.Negative.Max, m.Negative.MaxCoin)
 }

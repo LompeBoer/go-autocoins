@@ -3,6 +3,7 @@ package discord
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
@@ -11,19 +12,18 @@ type DiscordWebHook struct {
 	Enabled bool
 }
 
-type SendParams struct {
-	Content string `json:"content"`
+func (w *DiscordWebHook) SendTextMessage(message string) error {
+	return w.SendMessage(DiscordWebhookMessage{
+		Content: message,
+	})
 }
 
-func (w *DiscordWebHook) SendMessage(message string) error {
+func (w *DiscordWebHook) SendMessage(message DiscordWebhookMessage) error {
 	if !w.Enabled || w.URL == "" {
 		return nil
 	}
 
-	params := SendParams{
-		Content: message,
-	}
-	b, err := json.Marshal(params)
+	b, err := json.Marshal(message)
 	if err != nil {
 		return err
 	}
@@ -31,9 +31,10 @@ func (w *DiscordWebHook) SendMessage(message string) error {
 	reader := bytes.NewReader(b)
 	_, err = http.Post(w.URL, "application/json", reader)
 	if err != nil {
+		log.Fatal(err)
 		return err
 	}
-	// fmt.Printf("response post status code: %d\n", r.StatusCode)
+
 	return nil
 }
 
@@ -46,5 +47,5 @@ func (w *DiscordWebHook) SendError(message string, mention bool) error {
 		message = "@here " + message
 	}
 
-	return w.SendMessage(message)
+	return w.SendTextMessage(message)
 }

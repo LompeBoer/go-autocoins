@@ -3,18 +3,14 @@ package autocoins
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"math"
-	"os"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/LompeBoer/go-autocoins/internal/binance"
 	"github.com/LompeBoer/go-autocoins/internal/database"
-	"github.com/LompeBoer/go-autocoins/internal/discord"
 	"github.com/LompeBoer/go-autocoins/internal/wickhunter"
 )
 
@@ -26,112 +22,31 @@ type AutoCoins struct {
 	cancel                     context.CancelFunc
 	wg                         sync.WaitGroup
 	IsRunning                  bool
-	Discord                    discord.DiscordWebHook
 	MaxFailedSymbolsPercentage float64
 	StorageFilename            string
 	DisableWrite               bool
-}
-
-func (a *AutoCoins) Run() {
-	ctx, cancel := context.WithCancel(context.Background())
-	a.ctx = ctx
-	a.cancel = cancel
-	a.wg.Add(1)
-	defer a.wg.Done()
-
-	a.IsRunning = true
-	for {
-		log.Println("Calculating coin list ...")
-		startTime := time.Now()
-
-		// Download the permitted and safe pairs list from Google Docs.
-		var pairsList []wickhunter.Pair
-		if a.Settings.Filters.GoogleSheetPermitted || a.Settings.Filters.GoogleSheetSafe {
-			list, err := wickhunter.ReadPairsList(a.Settings.GoogleApiKey)
-			if err != nil {
-				msg := fmt.Sprintf("Unable to retrieve Google Doc WickHunter Pairs List: %s", err.Error())
-				log.Println(msg)
-				a.Discord.SendMessage(msg)
-			}
-			pairsList = list
-		}
-
-		// Process all the symbols.
-		permittedCoins, err := a.GetInfo(pairsList)
-		if err != nil {
-			log.Println(err.Error())
-			a.Discord.SendError(err.Error(), a.Settings.MentionOnError)
-		} else if a.DisableWrite {
-			log.Println("READ ONLY not updating WickHunter DB")
-		} else if len(permittedCoins) == 0 {
-			log.Println("ERROR: No permitted coins")
-			a.Discord.SendError("ERROR: No permitted coins", a.Settings.MentionOnError)
-		} else {
-			a.BackupDatabase()
-			a.DB.UpdatePermittedList(permittedCoins)
-		}
-
-		elapsed := time.Since(startTime)
-		log.Printf("Elapsed: %s\n", elapsed)
-		log.Printf("API Weight used: %d/%d\n", a.API.UsedWeight, a.API.WeightLimit)
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(time.Duration(a.Settings.Refresh) * time.Minute):
-			a.ReloadConfig()
-		}
-	}
-}
-
-func (a *AutoCoins) Stop() {
-	if !a.IsRunning {
-		return
-	}
-	a.IsRunning = false
-	a.API.Cancel()
-	a.cancel()
-	a.wg.Wait()
-}
-
-func (a *AutoCoins) BackupDatabase() {
-	original, err := os.Open(a.StorageFilename)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer original.Close()
-
-	new, err := os.Create(a.StorageFilename + ".bak")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer new.Close()
-
-	_, err = io.Copy(new, original)
-	if err != nil {
-		log.Fatal(err)
-	}
+	OutputWriter               OutputWriter
 }
 
 // GetInfo retrieves all symbol data and calculates market swing.
 // It returns a list of permitted coins to trade.
-func (a *AutoCoins) GetInfo(pairsList []wickhunter.Pair) ([]string, error) {
+func (a *AutoCoins) GetInfo(pairsList []wickhunter.Pair) ([]SymbolDataObject, SymbolLists, error) {
 	exchangeInfo, err := a.API.GetExchangeInfo()
 	if err != nil {
-		return nil, err
+		return nil, SymbolLists{}, err
 	}
 	symbols, err := a.filterSymbols(exchangeInfo.Symbols, pairsList)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to filter symbols: %s", err.Error())
+		return nil, SymbolLists{}, fmt.Errorf("unable to filter symbols: %s", err.Error())
 	}
 	sort.Sort(binance.BySymbolName(symbols))
 
 	// Will pause execution when rate limit will be exceeded.
-	a.RateLimitChecks(len(symbols))
+	a.API.RateLimitChecks(len(symbols))
 
 	prices24Hours, err := a.API.GetTicker()
 	if err != nil {
-		return nil, err
+		return nil, SymbolLists{}, err
 	}
 
 	c := make(chan SymbolDataObject)
@@ -145,23 +60,22 @@ func (a *AutoCoins) GetInfo(pairsList []wickhunter.Pair) ([]string, error) {
 
 	lists, err := a.makeLists(objects)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to make list: %s", err.Error())
+		return nil, SymbolLists{}, fmt.Errorf("unable to make list: %s", err.Error())
 	}
 
 	// If not enough symbol data is retrieved from the API fail this run.
 	percentageFailed := float64(len(lists.FailedToProcess)) / float64(len(symbols))
 	if percentageFailed > a.MaxFailedSymbolsPercentage {
-		return nil, fmt.Errorf("Unable to retrieve enough data from Binance API (%.0f%% failed)", percentageFailed*100)
+		return nil, SymbolLists{}, fmt.Errorf("unable to retrieve enough data from Binance API (%.0f%% failed)", percentageFailed*100)
 	}
 
-	a.MarketSwing(objects)
-	a.WriteCoinResults(lists)
+	a.OutputWriter.WriteResult(objects, lists)
 
 	p := len(lists.Permitted)
 	q := len(lists.Quarantined)
 	log.Printf("Permitted: %d Quarantined: %d Total: %d\n", p, q, p+q)
 
-	return lists.Permitted, nil
+	return objects, lists, nil
 }
 
 // filterSymbols filters out the symbols from the exchangeInfo that are not used in the local storage file.
@@ -267,12 +181,12 @@ type SymbolLists struct {
 func (a *AutoCoins) makeLists(objects []SymbolDataObject) (SymbolLists, error) {
 	openPositions, err := a.DB.SelectOpenOrders()
 	if err != nil {
-		return SymbolLists{}, fmt.Errorf("makeLists:SelectOpenOrders: %s\n", err.Error())
+		return SymbolLists{}, fmt.Errorf("makeLists:SelectOpenOrders: %s", err.Error())
 	}
 
 	permittedCurrently, err := a.DB.SelectPermittedInstruments()
 	if err != nil {
-		return SymbolLists{}, fmt.Errorf("makeLists:SelectInstruments: %s\n", err.Error())
+		return SymbolLists{}, fmt.Errorf("makeLists:SelectInstruments: %s", err.Error())
 	}
 	permittedCurrentlyNames := []string{}
 	for _, p := range permittedCurrently {
@@ -528,77 +442,4 @@ type SymbolDataObject struct {
 	Open               bool           `json:"Open"`
 	Time               time.Time      `json:"dateTime"`
 	APIFailed          bool           `json:"apiFailed"`
-}
-
-func (a *AutoCoins) MarketSwing(objects []SymbolDataObject) {
-	b := strings.Builder{}
-	d := strings.Builder{}
-	marketSwings := a.marketSwingValues(objects)
-	for _, marketSwing := range marketSwings {
-		marketSwing.WriteString(&b, false)
-		marketSwing.WriteString(&d, true)
-	}
-	fmt.Println(b.String())
-	a.Discord.SendMessage(d.String())
-
-	// # $longvwap24 = [math]::Round((($settings.longVwapMax - $settings.longVwapMin) * ($negpercent24 / 100)) + $settings.longVwapMin, 1)
-	// # $shortvwap24 = [math]::Round((($settings.shortVwapMax - $settings.shortVwapMin) * ($pospercent24 / 100)) + $settings.shortVwapMin, 1)
-	// # $longvwap1 = [math]::Round((($settings.longVwapMax - $settings.longVwapMin) * ($negpercent1 / 100)) + $settings.longVwapMin, 1)
-	// # $shortvwap1 = [math]::Round((($settings.shortVwapMax - $settings.shortVwapMin) * ($pospercent1 / 100)) + $settings.shortVwapMin, 1)
-
-	// $message = "**MarketSwing - Last 1hr** - $swingmood1`n$pospercent1% Long | $poscoincount1 Coins | Ave $posave1% | Max $posmax1% $posmaxcoin1`n" + "$negpercent1% Short | $negcoincount1 Coins | Ave $negave1% | Max $negmax1% $negmaxcoin1 `n**MarketSwing - Last 4hrs** - $swingmood4`n$pospercent4% Long | $poscoincount4 Coins | Ave $posave4% | Max $posmax4% $posmaxcoin4`n" + "$negpercent4% Short | $negcoincount4 Coins | Ave $negave4% | Max $negmax4% $negmaxcoin4 `n**MarketSwing - Last 24hrs** - $swingmood24`n$pospercent24% Long | $poscoincount24 Coins | Ave $posave24% | Max $posmax24% $posmaxcoin24`n" + "$negpercent24% Short | $negcoincount24 Coins | Ave $negave24% | Max $negmax24% $negmaxcoin24"
-}
-
-func (a *AutoCoins) WriteCoinResults(lists SymbolLists) {
-	b := strings.Builder{}
-	d := strings.Builder{}
-	a.writeCoinMessage(&b, lists, false)
-	a.writeCoinMessage(&d, lists, true)
-	fmt.Println(b.String())
-	a.Discord.SendMessage(d.String())
-}
-
-func (a *AutoCoins) writeCoinMessage(w io.Writer, lists SymbolLists, applyStyle bool) {
-	boldPre := "** "
-	boldSuf := ""
-	if applyStyle {
-		boldPre = "**"
-		boldSuf = "**"
-	}
-
-	msgQuarantinedNew := strings.Join(lists.QuarantinedNew, ", ")
-	msgQuarantined := strings.Join(lists.Quarantined, ", ")
-	msgQuarantinedRemoved := strings.Join(lists.QuarantinedRemoved, ", ")
-	msgQuarantinedSkipped := strings.Join(lists.QuarantinedSkipped, ", ")
-	msgFailed := strings.Join(lists.FailedToProcess, ", ")
-
-	if len(msgQuarantinedNew) > 0 {
-		fmt.Fprintf(w, "%sNEW QUARANTINED%s: %s\n", boldPre, boldSuf, msgQuarantinedNew)
-	}
-	fmt.Fprintf(w, "%sQUARANTINED%s: %s\n", boldPre, boldSuf, msgQuarantined)
-	if len(msgQuarantinedRemoved) > 0 {
-		fmt.Fprintf(w, "%sUNQUARANTINED%s: %s\n", boldPre, boldSuf, msgQuarantinedRemoved)
-	}
-	if len(msgQuarantinedSkipped) > 0 {
-		fmt.Fprintf(w, "%sOPEN POSITIONS - NOT QUARANTINED%s: %s\n", boldPre, boldSuf, msgQuarantinedSkipped)
-	}
-	if len(msgFailed) > 0 {
-		fmt.Fprintf(w, "%sFAILED TO PROCESS%s: %s\n", boldPre, boldSuf, msgFailed)
-	}
-}
-
-// Reload the settings (from disk.)
-func (a *AutoCoins) ReloadConfig() {
-	a.Settings = *a.Settings.ReloadConfig()
-	a.Discord.URL = a.Settings.Discord
-}
-
-// RateLimitChecks sets the rate limit estimation and pauses execution when estimated weight will be exceeded.
-func (a *AutoCoins) RateLimitChecks(symbolCount int) {
-	a.API.EstimatedWeightUsage = int((float64(symbolCount) * 3.0 * binance.KlineWeight) + binance.TickerWeight + binance.ExchangeInfoWeight)
-	if a.API.CheckForWeightLimit() {
-		log.Println("Weight warning! Will pause for one minute")
-		a.API.PauseForWeightWarning()
-		log.Println("Finished weight wait")
-	}
 }

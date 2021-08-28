@@ -34,6 +34,9 @@ See her page for more great WH scripts.
   - **minAthPercent**: minimum proximity to ATH in percent (default = 5). Note: due to Binance limitations, the ATH is only pulled from the last 20 months, so it's not a true All Time High, but ATH-ish.
   - **minAge**: minimum coin age in days (default = 14).
   - **refresh**: the period in minutes of how often to check (recommended minimum 15 mins due to possibility of over-running your API limit) (default = 15).
+  - **proxy**: (optional) IP proxy and port to use (example "http://25.12.124.35:2763"). Leave blank if no proxy used ("").
+  - **proxyUser**: (optional) proxy user.
+  - **proxyPass**: (optional) proxy password.
   - **discord**: (optional) your discord webhook.
   - **mentionOnError**: use @here mention on Discord when an error occurs. (default = true)
   - **blacklist**: permanently blacklisted coins.
@@ -41,10 +44,10 @@ See her page for more great WH scripts.
   - **marginAssets**: list of margin assets to trade. Use empty list to not filter out any pairs (default = ["USDT"]).
   - **filters**: this controls which filters are used
     - **blacklist**: Enable/disable the _blacklist_ (default = true).
-    - **margin_assets**: Enable/disable checking the _marginAssets_  (default = true).
-    - **google_sheet_permitted**: Enable/disable the Google Sheet _WH Pairs list_ permitted list (default = false).
-    - **google_sheet_safe**: Enable/disable the Google Sheet _WH Pairs list_ safe list (default = false).
-    - **wickhunter_db**: Enable/disable using the default WickHunter bot coin list (default = false).
+    - **marginAssets**: Enable/disable checking the _marginAssets_  (default = true).
+    - **googleSheetPermitted**: Enable/disable the Google Sheet _WH Pairs list_ permitted list (default = false).
+    - **googleSheetSafe**: Enable/disable the Google Sheet _WH Pairs list_ safe list (default = false).
+    - **wickhunterDB**: Enable/disable using the default WickHunter bot coin list (default = false).
 
 - Double-click on the executable or run it from the terminal.
 
@@ -58,6 +61,8 @@ You can supply flags at startup. These are optional.
 - **-safepairs**: set safe pairs to permitted from the Google Sheet Pairs List and exits the program (Note: first close WH bot)
 
 ## Difference with PowerShell autoCoins
+There are changes to the `autoCoins.json` file.  
+
 ### Missing
 - Writing to a log file.
 - Geo check at startup.
