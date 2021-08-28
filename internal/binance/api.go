@@ -32,15 +32,6 @@ type BinanceAPI struct {
 	cancel               context.CancelFunc
 }
 
-const (
-	TickerWeight           = 40.0
-	ExchangeInfoWeight     = 10.0
-	KlineWeight            = 4.35 // This should be 1 according to the Binance API documentation.
-	WeightEstimationBuffer = 1.1  // WeightEstimationBuffer percentage of `EstimatedWeightUsage` to use in rate limit.
-	MinimumWeightLimit     = 0.5  // MinimumWeightLimit percentage for minimum weight limit warning.
-	MaximumWeightLimit     = 1.0  // MaximumWeightLimit percentage for maximum weight limit warning.
-)
-
 type BinanceAPIParams struct {
 	DebugSaveResponses bool   // DebugSaveResponses saves API responses to disk in the ./data dir.
 	DebugReadResponses bool   // DebugReadResponses read API responses from disk.
@@ -283,36 +274,6 @@ func (a *BinanceAPI) GetKLine(symbol Symbol, limit int, interval KlineInterval) 
 	return klines, nil
 }
 
-func (a *BinanceAPI) debugPrintKline(kline KLine) {
-	fmt.Printf(`
-			kline.OpenTime = %d
-			kline.Open = %s
-			kline.High = %s
-			kline.Low = %s
-			kline.Close = %s
-			kline.Volume = %s
-			kline.CloseTime = %d
-			kline.QuoteAssetVolume = %s
-			kline.NumberOfTrades = %d
-			kline.TakerBuyBaseAssetVolume = %s
-			kline.TakerBuyQuoteAssetVolume = %s
-			kline.Ignore = %s
-		`,
-		kline.OpenTime,
-		kline.Open,
-		kline.High,
-		kline.Low,
-		kline.Close,
-		kline.Volume,
-		kline.CloseTime,
-		kline.QuoteAssetVolume,
-		kline.NumberOfTrades,
-		kline.TakerBuyBaseAssetVolume,
-		kline.TakerBuyQuoteAssetVolume,
-		kline.Ignore,
-	)
-}
-
 func (a *BinanceAPI) klineStringValue(value interface{}) string {
 	switch v := value.(type) {
 	case string:
@@ -357,16 +318,11 @@ func (a *BinanceAPI) requestGet(url string, skipWeightCheck bool) (*http.Respons
 			a.UsedWeight = 0
 		}
 		if a.WeightLimit > 0 && !skipWeightCheck {
-			if float64(a.UsedWeight) > float64(a.EstimatedWeightUsage)*WeightEstimationBuffer {
+			limit := a.CheckForWeightLimit()
+			if float64(a.UsedWeight) > limit {
 				// TODO: not print warning for each request, too much spam.
-				log.Printf("WARNING: using more than estimated weight limit: %d/%d\n", a.UsedWeight, a.EstimatedWeightUsage)
-				if !a.pauseRequest(10 * time.Second) {
-					return nil, errors.New("context cancelled")
-				}
-			}
-			// TODO: change this to a while?
-			if float64(a.UsedWeight) > float64(a.WeightLimit)*0.75 {
-				log.Printf("WARNING: 3/4 of weight limit reached: %d/%d\n", a.UsedWeight, a.WeightLimit)
+				// TODO: put in a while?
+				log.Printf("WARNING: exceeding weight limit: %d/%d\n", a.UsedWeight, a.EstimatedWeightUsage)
 				if !a.pauseRequest(60 * time.Second) {
 					return nil, errors.New("context cancelled")
 				}
@@ -436,36 +392,4 @@ func FilenameForURL(url string) string {
 	io.WriteString(h, url)
 	hash := base64.URLEncoding.EncodeToString(h.Sum(nil))
 	return fmt.Sprintf("data/%s", hash)
-}
-
-// CheckForWeightLimit check if the rate limit estimation will not exceed the set limit.
-// There should be a buffer left so the WH bot still has room to do its thing.
-func (a *BinanceAPI) CheckForWeightLimit() bool {
-	limit := float64(a.EstimatedWeightUsage) * WeightEstimationBuffer
-	if a.WeightLimit != 0 {
-		maxLimit := float64(a.WeightLimit) * MaximumWeightLimit
-		minLimit := float64(a.WeightLimit) * MinimumWeightLimit
-		if limit > maxLimit {
-			limit = maxLimit
-		} else if limit < minLimit {
-			limit = minLimit
-		}
-	}
-	log.Printf("Binance API Weight - Used: %d Estimated: %d Limit: %.0f\n", a.UsedWeight, a.EstimatedWeightUsage, limit)
-	return float64(a.EstimatedWeightUsage+a.UsedWeight) > limit
-}
-
-// PauseForWeightWarning sleeps until the rate limit is reset.
-func (a *BinanceAPI) PauseForWeightWarning() {
-	a.pauseRequest(time.Minute)
-}
-
-// RateLimitChecks sets the rate limit estimation and pauses execution when estimated weight will be exceeded.
-func (a *BinanceAPI) RateLimitChecks(symbolCount int) {
-	a.EstimatedWeightUsage = int((float64(symbolCount) * 3.0 * KlineWeight) + TickerWeight + ExchangeInfoWeight)
-	if a.CheckForWeightLimit() {
-		log.Println("Weight warning! Will pause for one minute")
-		a.PauseForWeightWarning()
-		log.Println("Finished weight wait")
-	}
 }

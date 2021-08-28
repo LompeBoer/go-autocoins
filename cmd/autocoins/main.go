@@ -17,7 +17,7 @@ import (
 	"github.com/LompeBoer/go-autocoins/internal/discord"
 )
 
-const VersionNumber = "0.9.11"
+const VersionNumber = "0.9.12"
 
 func main() {
 	flags := initFlags()
