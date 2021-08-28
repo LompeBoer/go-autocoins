@@ -65,10 +65,16 @@ func (m *MarketSwing) processObject(percentValue float64, symbol string) {
 }
 
 func (m *MarketSwing) calculate() {
-	m.Positive.Average = m.Positive.CountTotal / float64(m.Positive.CoinCount)
-	m.Negative.Average = m.Negative.CountTotal / float64(m.Negative.CoinCount)
+	if m.Positive.CoinCount != 0 {
+		m.Positive.Average = m.Positive.CountTotal / float64(m.Positive.CoinCount)
+	}
+	if m.Negative.CoinCount != 0 {
+		m.Negative.Average = m.Negative.CountTotal / float64(m.Negative.CoinCount)
+	}
 	m.CountTotal = m.Positive.CoinCount + m.Negative.CoinCount
-	m.Positive.Percent = (float64(m.Positive.CoinCount) / float64(m.CountTotal)) * 100
+	if m.CountTotal != 0 {
+		m.Positive.Percent = (float64(m.Positive.CoinCount) / float64(m.CountTotal)) * 100
+	}
 	m.Negative.Percent = 100 - m.Positive.Percent
 
 	m.Swing = m.Positive.Percent - m.Negative.Percent
