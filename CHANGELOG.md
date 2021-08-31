@@ -1,2 +1,3 @@
-* Discord messages are now rich styled.
-* Some refactoring of the code.
+* Improved Binance rate limit check
+* Divide by zero fix
+* Updated release pipeline
