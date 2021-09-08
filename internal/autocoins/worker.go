@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/LompeBoer/go-autocoins/internal/wickhunter"
+	"github.com/LompeBoer/go-autocoins/internal/pairslist"
 )
 
 // RunLoop the main loop that will be run by `Run`
@@ -17,9 +17,9 @@ func (a *AutoCoins) RunLoop() {
 	startTime := time.Now()
 
 	// Download the permitted and safe pairs list from Google Docs.
-	var pairsList []wickhunter.Pair
+	var pairsList []pairslist.Pair
 	if a.Settings.Filters.GoogleSheetPermitted || a.Settings.Filters.GoogleSheetSafe {
-		list, err := wickhunter.ReadPairsList(a.Settings.GoogleApiKey)
+		list, err := pairslist.ReadWithKey(a.Settings.GoogleApiKey)
 		if err != nil {
 			a.OutputWriter.WriteError(fmt.Sprintf("Unable to retrieve Google Doc WickHunter Pairs List: %s", err.Error()))
 		}

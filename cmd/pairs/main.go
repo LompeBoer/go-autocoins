@@ -7,11 +7,11 @@ import (
 	"github.com/LompeBoer/go-autocoins/internal/database"
 	"github.com/LompeBoer/go-autocoins/internal/database/whdbv0"
 	"github.com/LompeBoer/go-autocoins/internal/database/whdbv1"
-	"github.com/LompeBoer/go-autocoins/internal/wickhunter"
+	"github.com/LompeBoer/go-autocoins/internal/pairslist"
 )
 
 func main() {
-	list, err := wickhunter.ReadPairsList("")
+	list, err := pairslist.Read()
 	if err != nil {
 		log.Fatal(err)
 	}

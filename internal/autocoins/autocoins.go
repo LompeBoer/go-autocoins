@@ -11,7 +11,7 @@ import (
 
 	"github.com/LompeBoer/go-autocoins/internal/binance"
 	"github.com/LompeBoer/go-autocoins/internal/database"
-	"github.com/LompeBoer/go-autocoins/internal/wickhunter"
+	"github.com/LompeBoer/go-autocoins/internal/pairslist"
 )
 
 type AutoCoins struct {
@@ -30,7 +30,7 @@ type AutoCoins struct {
 
 // GetInfo retrieves all symbol data and calculates market swing.
 // It returns a list of permitted coins to trade.
-func (a *AutoCoins) GetInfo(pairsList []wickhunter.Pair) ([]SymbolDataObject, SymbolLists, error) {
+func (a *AutoCoins) GetInfo(pairsList []pairslist.Pair) ([]SymbolDataObject, SymbolLists, error) {
 	exchangeInfo, err := a.API.GetExchangeInfo()
 	if err != nil {
 		return nil, SymbolLists{}, err
@@ -80,7 +80,7 @@ func (a *AutoCoins) GetInfo(pairsList []wickhunter.Pair) ([]SymbolDataObject, Sy
 
 // filterSymbols filters out the symbols from the exchangeInfo that are not used in the local storage file.
 // It also checks the MarginAssets setting and filters out any symbol which uses a margin asset not in this list.
-func (a *AutoCoins) filterSymbols(symbols []binance.Symbol, pairsList []wickhunter.Pair) ([]binance.Symbol, error) {
+func (a *AutoCoins) filterSymbols(symbols []binance.Symbol, pairsList []pairslist.Pair) ([]binance.Symbol, error) {
 	usedSymbols, err := a.DB.SelectInstruments()
 	if err != nil {
 		return nil, err

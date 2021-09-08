@@ -1,4 +1,4 @@
-package wickhunter
+package pairslist
 
 import (
 	"context"
@@ -30,9 +30,9 @@ type Pair struct {
 
 // ReadPairsList retrieves the pairs list by WickHunter.
 // If no key is provided it will use the CSV export method.
-func ReadPairsList(key string) ([]Pair, error) {
+func ReadWithKey(key string) ([]Pair, error) {
 	if key == "" {
-		return ReadPairsListWithoutKey()
+		return Read()
 	}
 	ctx := context.Background()
 
@@ -67,7 +67,7 @@ func ReadPairsList(key string) ([]Pair, error) {
 	}
 }
 
-func ReadPairsListWithoutKey() ([]Pair, error) {
+func Read() ([]Pair, error) {
 	sheet := url.PathEscape(SheetName)
 	url := fmt.Sprintf("https://docs.google.com/spreadsheets/d/%s/gviz/tq?tqx=out:csv&sheet=%s&range=%s", DocumentID, sheet, ReadRange)
 	resp, err := http.Get(url)

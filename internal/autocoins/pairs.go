@@ -3,11 +3,11 @@ package autocoins
 import (
 	"log"
 
-	"github.com/LompeBoer/go-autocoins/internal/wickhunter"
+	"github.com/LompeBoer/go-autocoins/internal/pairslist"
 )
 
 func (a *AutoCoins) SetPairs(useSafe bool) {
-	list, err := wickhunter.ReadPairsList("")
+	list, err := pairslist.Read()
 	if err != nil {
 		log.Fatal(err)
 	}

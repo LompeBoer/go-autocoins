@@ -1,4 +1,4 @@
-package wickhunter
+package pairslist
 
 import (
 	"fmt"
