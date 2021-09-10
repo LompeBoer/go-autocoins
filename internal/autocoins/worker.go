@@ -31,19 +31,26 @@ func (a *AutoCoins) RunLoop() {
 	if err != nil {
 		a.OutputWriter.WriteError(err.Error())
 	} else if a.DisableWrite {
-		log.Println("READ ONLY not updating WickHunter DB")
+		log.Println("READ ONLY not updating WickHunter")
 	} else if len(lists.Permitted) == 0 {
 		a.OutputWriter.WriteError("ERROR: No permitted coins (no action performed)")
 	} else {
 		a.BackupDatabase()
-		a.DB.UpdatePermittedList(lists.Permitted)
-
-		a.OutputWriter.WriteResult(objects, lists)
+		a.BotAPI.UpdatePermittedList(lists.Permitted, lists.Quarantined)
 	}
 
-	elapsed := time.Since(startTime)
-	log.Printf("Elapsed: %s\n", elapsed)
-	log.Printf("API Weight used: %d/%d\n", a.API.UsedWeight, a.API.WeightLimit)
+	a.outputRun(objects, lists, startTime)
+}
+
+func (a *AutoCoins) outputRun(objects []SymbolDataObject, lists SymbolLists, startTime time.Time) {
+	a.OutputWriter.WriteResult(objects, lists)
+
+	p := len(lists.Permitted)
+	q := len(lists.Quarantined)
+
+	log.Printf("Permitted: %d Quarantined: %d Total: %d\n", p, q, p+q)
+	log.Printf("Elapsed: %s\n", time.Since(startTime))
+	log.Printf("API Weight used: %d/%d\n", a.ExchangeAPI.UsedWeight, a.ExchangeAPI.WeightLimit)
 }
 
 // Start running the loop with a wait interval defined in settings.
@@ -73,7 +80,7 @@ func (a *AutoCoins) Stop() {
 		return
 	}
 	a.IsRunning = false
-	a.API.Cancel()
+	a.ExchangeAPI.Cancel()
 	a.cancel()
 	a.wg.Wait()
 }

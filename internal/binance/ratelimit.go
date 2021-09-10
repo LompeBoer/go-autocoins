@@ -16,7 +16,7 @@ const (
 
 // CheckForWeightLimit check if the rate limit estimation will not exceed the set limit.
 // There should be a buffer left so the WH bot still has room to do its thing.
-func (a *BinanceAPI) CheckForWeightLimit() float64 {
+func (a *API) CheckForWeightLimit() float64 {
 	limit := float64(a.EstimatedWeightUsage) * WeightEstimationBuffer
 	if a.WeightLimit != 0 {
 		maxLimit := float64(a.WeightLimit) * MaximumWeightLimit
@@ -31,19 +31,19 @@ func (a *BinanceAPI) CheckForWeightLimit() float64 {
 }
 
 // PreCheckForWeightLimit determines ahead of time if the rate limit will be exceeded.
-func (a *BinanceAPI) PreCheckForWeightLimit() bool {
+func (a *API) PreCheckForWeightLimit() bool {
 	limit := a.CheckForWeightLimit()
 	log.Printf("Binance API Weight - Used: %d Estimated: %d Limit: %.0f\n", a.UsedWeight, a.EstimatedWeightUsage, limit)
 	return float64(a.EstimatedWeightUsage+a.UsedWeight) > limit
 }
 
 // PauseForWeightWarning sleeps until the rate limit is reset.
-func (a *BinanceAPI) PauseForWeightWarning() {
+func (a *API) PauseForWeightWarning() {
 	a.pauseRequest(time.Minute)
 }
 
 // RateLimitChecks sets the rate limit estimation and pauses execution when estimated weight will be exceeded.
-func (a *BinanceAPI) RateLimitChecks(symbolCount int) {
+func (a *API) RateLimitChecks(symbolCount int) {
 	a.EstimatedWeightUsage = int((float64(symbolCount) * 3.0 * KlineWeight) + TickerWeight + ExchangeInfoWeight)
 	if a.PreCheckForWeightLimit() {
 		log.Println("Weight warning! Will pause for one minute")

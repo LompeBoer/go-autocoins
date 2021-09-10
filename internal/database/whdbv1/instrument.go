@@ -177,6 +177,9 @@ func (d *Database) SelectInstrumentsForPermitted(permitted bool) ([]database.Ins
 	}
 	defer stmt.Close()
 	rows, err := stmt.Query(permitted)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	var items []database.Instrument
 	for rows.Next() {

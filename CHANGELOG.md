@@ -1,3 +1,2 @@
-* Improved Binance rate limit check
-* Divide by zero fix
-* Updated release pipeline
+* Added support for Wick Hunter v1.1.4
+* Removed support for Wick Hunter v0.6.6

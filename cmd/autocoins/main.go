@@ -11,13 +11,11 @@ import (
 
 	"github.com/LompeBoer/go-autocoins/internal/autocoins"
 	"github.com/LompeBoer/go-autocoins/internal/binance"
-	"github.com/LompeBoer/go-autocoins/internal/database"
-	"github.com/LompeBoer/go-autocoins/internal/database/whdbv0"
-	"github.com/LompeBoer/go-autocoins/internal/database/whdbv1"
 	"github.com/LompeBoer/go-autocoins/internal/discord"
+	"github.com/LompeBoer/go-autocoins/internal/wickhunter"
 )
 
-const VersionNumber = "0.9.12"
+const VersionNumber = "0.9.13"
 
 func main() {
 	flags := initFlags()
@@ -26,10 +24,7 @@ func main() {
 
 	settings := autocoins.LoadConfig(flags.ConfigFilename)
 
-	db := initDatabase(flags.StorageFilename, settings.Version)
-	defer db.Close()
-
-	autoCoins := initAutoCoins(db, settings, flags.StorageFilename)
+	autoCoins := initAutoCoins(settings, flags.StorageFilename)
 	if flags.SetPairs || flags.SetSafePairs {
 		autoCoins.SetPairs(flags.SetSafePairs)
 	} else {
@@ -43,14 +38,14 @@ func main() {
 	log.Printf("Exiting autocoins")
 }
 
-func initAutoCoins(db database.DatabaseService, settings *autocoins.Settings, storageFilename string) autocoins.AutoCoins {
+func initAutoCoins(settings *autocoins.Settings, storageFilename string) autocoins.AutoCoins {
 	discordHook := discord.DiscordWebHook{
 		Enabled: true,
 		URL:     settings.Discord,
 	}
 	autoCoins := autocoins.AutoCoins{
 		Settings: *settings,
-		API: binance.NewAPI(binance.BinanceAPIParams{
+		ExchangeAPI: binance.NewAPI(binance.APIParams{
 			BaseURL:            "https://fapi.binance.com",
 			ProxyURL:           settings.Proxy,
 			ProxyUser:          settings.ProxyUser,
@@ -58,10 +53,10 @@ func initAutoCoins(db database.DatabaseService, settings *autocoins.Settings, st
 			DebugSaveResponses: false,
 			DebugReadResponses: false,
 		}),
-		DB:                         db,
+		BotAPI:                     wickhunter.NewAPI(settings.API),
 		MaxFailedSymbolsPercentage: 0.1,
 		StorageFilename:            storageFilename,
-		DisableWrite:               settings.Version == 1, // Because WickHunter does not yet pickup changes to the storage.db file disable writing for v1.0.
+		DisableWrite:               false,
 		OutputWriter: autocoins.OutputWriter{
 			Writers: []autocoins.Writer{
 				&autocoins.ConsoleOutputWriter{},
@@ -74,14 +69,6 @@ func initAutoCoins(db database.DatabaseService, settings *autocoins.Settings, st
 		},
 	}
 	return autoCoins
-}
-
-func initDatabase(storageFilename string, version int) database.DatabaseService {
-	if version == 1 {
-		return whdbv1.New(storageFilename)
-	}
-
-	return whdbv0.New(storageFilename)
 }
 
 type StartupFlags struct {

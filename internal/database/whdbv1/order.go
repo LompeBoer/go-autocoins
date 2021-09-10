@@ -1,20 +1,18 @@
 package whdbv1
 
-import "time"
-
 type PositionState struct {
-	LaunchID             string    `json:"LaunchId"`
-	DateTime             time.Time `json:"Datetime"`
-	Symbol               string    `json:"Symbol"`
-	Status               string    `json:"Status"`
-	Side                 string    `json:"Side"`
-	BuyCount             int64     `json:"BuyCount"`
-	Quantity             float64   `json:"Quantity"`
-	AveragePrice         float64   `json:"AveragePrice"`
-	TakeProfitPrice      float64   `json:"TakeProfitPrice"`
-	StopLossPrice        float64   `json:"StopLossPrice"`
-	TakeProfitLimitPrice string    `json:"TakeProfitLimitPrice"`
-	Reason               string    `json:"Reason"`
+	LaunchID             string  `json:"LaunchId"`
+	DateTime             string  `json:"Datetime"`
+	Symbol               string  `json:"Symbol"`
+	Status               string  `json:"Status"`
+	Side                 string  `json:"Side"`
+	BuyCount             int64   `json:"BuyCount"`
+	Quantity             float64 `json:"Quantity"`
+	AveragePrice         float64 `json:"AveragePrice"`
+	TakeProfitPrice      float64 `json:"TakeProfitPrice"`
+	StopLossPrice        float64 `json:"StopLossPrice"`
+	TakeProfitLimitPrice string  `json:"TakeProfitLimitPrice"`
+	Reason               string  `json:"Reason"`
 }
 
 func (d *Database) SelectOpenOrders() ([]string, error) {
@@ -83,4 +81,38 @@ func (d *Database) SelectPositionStates() ([]PositionState, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+func (d *Database) SelectPositionState(symbol string) (PositionState, error) {
+	stmt, err := d.db.Prepare(`
+		SELECT m1.LaunchId,m1.Datetime,m1.Symbol,m1.Status,m1.Side,m1.BuyCount,m1.Quantity,m1.AveragePrice,m1.TakeProfitPrice,m1.StopLossPrice,m1.TakeProfitLimitPrice,m1.Reason
+		FROM PositionState m1 LEFT JOIN PositionState m2
+		ON (m1.Symbol = m2.Symbol AND m1.Datetime < m2.Datetime)
+		WHERE m1.Symbol = ?
+		AND m2.Datetime IS NULL
+	`)
+	if err != nil {
+		return PositionState{}, err
+	}
+	defer stmt.Close()
+	var item PositionState
+	err = stmt.QueryRow(symbol).Scan(
+		&item.LaunchID,
+		&item.DateTime,
+		&item.Symbol,
+		&item.Status,
+		&item.Side,
+		&item.BuyCount,
+		&item.Quantity,
+		&item.AveragePrice,
+		&item.TakeProfitPrice,
+		&item.StopLossPrice,
+		&item.TakeProfitLimitPrice,
+		&item.Reason,
+	)
+	if err != nil {
+		return PositionState{}, err
+	}
+
+	return item, nil
 }

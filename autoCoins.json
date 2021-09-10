@@ -1,6 +1,7 @@
 [
     {
         "version": 1,
+        "api": "http://localhost:5001",
         "max1hrPercent": 5,
         "max4hrPercent": 5,
         "max24hrPercent": 10,
@@ -25,7 +26,7 @@
             "marginAssets": true,
             "googleSheetPermitted": false,
             "googleSheetSafe": false,
-            "wickhunterDB": false
+            "wickhunterDB": true
         }
     }
 ]

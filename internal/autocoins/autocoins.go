@@ -3,21 +3,20 @@ package autocoins
 import (
 	"context"
 	"fmt"
-	"log"
 	"math"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/LompeBoer/go-autocoins/internal/binance"
-	"github.com/LompeBoer/go-autocoins/internal/database"
 	"github.com/LompeBoer/go-autocoins/internal/pairslist"
+	"github.com/LompeBoer/go-autocoins/internal/wickhunter"
 )
 
 type AutoCoins struct {
 	Settings                   Settings
-	API                        binance.BinanceAPI
-	DB                         database.DatabaseService
+	ExchangeAPI                *binance.API
+	BotAPI                     *wickhunter.API
 	ctx                        context.Context
 	cancel                     context.CancelFunc
 	wg                         sync.WaitGroup
@@ -31,7 +30,7 @@ type AutoCoins struct {
 // GetInfo retrieves all symbol data and calculates market swing.
 // It returns a list of permitted coins to trade.
 func (a *AutoCoins) GetInfo(pairsList []pairslist.Pair) ([]SymbolDataObject, SymbolLists, error) {
-	exchangeInfo, err := a.API.GetExchangeInfo()
+	exchangeInfo, err := a.ExchangeAPI.GetExchangeInfo()
 	if err != nil {
 		return nil, SymbolLists{}, err
 	}
@@ -42,9 +41,9 @@ func (a *AutoCoins) GetInfo(pairsList []pairslist.Pair) ([]SymbolDataObject, Sym
 	sort.Sort(binance.BySymbolName(symbols))
 
 	// Will pause execution when rate limit will be exceeded.
-	a.API.RateLimitChecks(len(symbols))
+	a.ExchangeAPI.RateLimitChecks(len(symbols))
 
-	prices24Hours, err := a.API.GetTicker()
+	prices24Hours, err := a.ExchangeAPI.GetTicker()
 	if err != nil {
 		return nil, SymbolLists{}, err
 	}
@@ -69,30 +68,24 @@ func (a *AutoCoins) GetInfo(pairsList []pairslist.Pair) ([]SymbolDataObject, Sym
 		return nil, SymbolLists{}, fmt.Errorf("unable to retrieve enough data from Binance API (%.0f%% failed)", percentageFailed*100)
 	}
 
-	a.OutputWriter.WriteResult(objects, lists)
-
-	p := len(lists.Permitted)
-	q := len(lists.Quarantined)
-	log.Printf("Permitted: %d Quarantined: %d Total: %d\n", p, q, p+q)
-
 	return objects, lists, nil
 }
 
 // filterSymbols filters out the symbols from the exchangeInfo that are not used in the local storage file.
 // It also checks the MarginAssets setting and filters out any symbol which uses a margin asset not in this list.
 func (a *AutoCoins) filterSymbols(symbols []binance.Symbol, pairsList []pairslist.Pair) ([]binance.Symbol, error) {
-	usedSymbols, err := a.DB.SelectInstruments()
+	usedSymbols, err := a.BotAPI.GetPositions()
 	if err != nil {
 		return nil, err
 	}
 
-	keepSymbol := func(s binance.Symbol, usedSymbols []database.Instrument) bool {
+	keepSymbol := func(s binance.Symbol, usedSymbols []wickhunter.Position) bool {
 		// Check if symbol is present in the WickHunter Bot Instrument table.
 		if a.Settings.Filters.WickHunterDB {
 			found := false
 			if a.Settings.Version == 1 {
 				for _, u := range usedSymbols {
-					if s.Name == u.Symbol.String {
+					if s.Name == u.Symbol {
 						found = true
 						break
 					}
@@ -179,23 +172,23 @@ type SymbolLists struct {
 
 // makeLists makes the SymbolLists object, this groups all the symbols in a certain list.
 func (a *AutoCoins) makeLists(objects []SymbolDataObject) (SymbolLists, error) {
-	openPositions, err := a.DB.SelectOpenOrders()
+	positions, err := a.BotAPI.GetPositions()
 	if err != nil {
-		return SymbolLists{}, fmt.Errorf("makeLists:SelectOpenOrders: %s", err.Error())
+		return SymbolLists{}, fmt.Errorf("botapi:getpositions: %s", err.Error())
 	}
 
-	permittedCurrently, err := a.DB.SelectPermittedInstruments()
-	if err != nil {
-		return SymbolLists{}, fmt.Errorf("makeLists:SelectInstruments: %s", err.Error())
-	}
-	permittedCurrentlyNames := []string{}
-	for _, p := range permittedCurrently {
-		permittedCurrentlyNames = append(permittedCurrentlyNames, p.Symbol.String)
-	}
-
-	quarantinedCurrently, err := a.quarantinedCurrently(objects, permittedCurrently)
-	if err != nil {
-		return SymbolLists{}, err
+	openPositions := []string{}
+	permittedCurrently := []string{}
+	quarantinedCurrently := []string{}
+	for _, p := range positions {
+		if p.IsOpen() {
+			openPositions = append(openPositions, p.Symbol)
+		}
+		if p.Permitted {
+			permittedCurrently = append(permittedCurrently, p.Symbol)
+		} else {
+			quarantinedCurrently = append(quarantinedCurrently, p.Symbol)
+		}
 	}
 
 	// Quarantined / Permitted
@@ -255,7 +248,7 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject) (SymbolLists, error) {
 	for _, p := range permitted {
 		found := false
 		for _, pc := range permittedCurrently {
-			if p.Symbol.Name == pc.Symbol.String {
+			if p.Symbol.Name == pc {
 				found = true
 				break
 			}
@@ -271,7 +264,7 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject) (SymbolLists, error) {
 	sort.Strings(quarantinedCurrently)
 	sort.Strings(quarantinedRemoved)
 	sort.Strings(permittedNames)
-	sort.Strings(permittedCurrentlyNames)
+	sort.Strings(permittedCurrently)
 	sort.Strings(failed)
 
 	return SymbolLists{
@@ -281,7 +274,7 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject) (SymbolLists, error) {
 		QuarantinedCurrently: quarantinedCurrently,
 		QuarantinedRemoved:   quarantinedRemoved,
 		Permitted:            permittedNames,
-		PermittedCurrently:   permittedCurrentlyNames,
+		PermittedCurrently:   permittedCurrently,
 		FailedToProcess:      failed,
 	}, nil
 }
@@ -302,7 +295,7 @@ func (a *AutoCoins) CalculateSymbolData(symbol binance.Symbol, prices24Hours []b
 	}
 	dateTime := time.Now()
 	limit := minCandles * 60
-	kline1Minute, err := a.API.GetKLine(symbol, limit, binance.OneMinute)
+	kline1Minute, err := a.ExchangeAPI.GetKLine(symbol, limit, binance.OneMinute)
 	if err != nil {
 		c <- a.apiFailResult(symbol)
 		return
@@ -326,7 +319,7 @@ func (a *AutoCoins) CalculateSymbolData(symbol binance.Symbol, prices24Hours []b
 	current4HoursPercent := ((prices1Hour[239] - prices1Hour[0]) * 100) / prices1Hour[239]
 	current24HoursPercent := binance.CalculateCurrent24HourPercent(prices24Hours, symbol.Name)
 
-	kline24Hours, err := a.API.GetKLine(symbol, 1500, binance.OneDay)
+	kline24Hours, err := a.ExchangeAPI.GetKLine(symbol, 1500, binance.OneDay)
 	if err != nil {
 		c <- a.apiFailResult(symbol)
 		return
@@ -334,7 +327,7 @@ func (a *AutoCoins) CalculateSymbolData(symbol binance.Symbol, prices24Hours []b
 	age := len(kline24Hours)
 	limit2 := math.Round((float64(age) / 30) + 1)
 
-	kline1Month, err := a.API.GetKLine(symbol, int(limit2), binance.OneMonth)
+	kline1Month, err := a.ExchangeAPI.GetKLine(symbol, int(limit2), binance.OneMonth)
 	if err != nil {
 		c <- a.apiFailResult(symbol)
 		return
@@ -394,36 +387,6 @@ func (a *AutoCoins) apiFailResult(symbol binance.Symbol) SymbolDataObject {
 	return SymbolDataObject{
 		Symbol:    symbol,
 		APIFailed: true,
-	}
-}
-
-func (a *AutoCoins) quarantinedCurrently(objects []SymbolDataObject, permittedCurrently []database.Instrument) ([]string, error) {
-	if a.Settings.Version == 1 {
-		l, err := a.DB.SelectNonPermittedInstruments()
-		if err != nil {
-			return nil, err
-		}
-		r := []string{}
-		for _, v := range l {
-			r = append(r, v.Symbol.String)
-		}
-		return r, nil
-	} else {
-		list := []string{}
-		for _, o := range objects {
-			found := false
-			for _, p := range permittedCurrently {
-				if o.Symbol.Name == p.Symbol.String {
-					found = true
-					break
-				}
-			}
-			if !found {
-				list = append(list, o.Symbol.Name)
-			}
-		}
-
-		return list, nil
 	}
 }
 

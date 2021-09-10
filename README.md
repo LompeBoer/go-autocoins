@@ -18,15 +18,15 @@ See her page for more great WH scripts.
   - combination of 1hr, 4hr and 24hr price percentage changes.
   - proximity to All Time High.
   - minimum coin age.
-- The program **overrides the existing coin list in WickHunter**, no need to pause the bot. **v0.6**
+- The program **overrides the existing coin list in WickHunter**, no need to pause the bot.
 - The program **does not** blacklist coins that are in open positions.
-- The program is **read only** for **v1.0** you have to **manually** change the coin list in the WickHunter bot
 
 ## Instructions:
 - Drop the executable file and the json settings file into the same folder with your bot. **Make sure the folder is not located on your desktop but is a dedicated folder elsewhere on your drive.**
-- Make sure you have WickHunter bot version **v0.6.2** or higher.
+- Make sure you have WickHunter bot version **v1.1.4** or higher.
 - Define the following in autoCoins.json file
-  - **version**: set this to 1 when using WickHunter bot v1.0 or set to 0 when using v0.6 (default = 1).
+  - **version**: set this to 1 when using WickHunter bot v1.1.4 (default = 1).
+  - **api**: use `http://localhost:5001` for Binance and `http://localhost:5000` for ByBit (default = `http://localhost:5001`)
   - **max1hrPercent**: maximum 1hr price change percentage (default = 5).
   - **max4hrPercent**: maximum 4hr price change percentage (default = 5).
   - **max24hrPercent**: maximum 24hr price change percentage (default = 10).
@@ -47,9 +47,9 @@ See her page for more great WH scripts.
     - **marginAssets**: Enable/disable checking the _marginAssets_  (default = true).
     - **googleSheetPermitted**: Enable/disable the Google Sheet _WH Pairs list_ permitted list (default = false).
     - **googleSheetSafe**: Enable/disable the Google Sheet _WH Pairs list_ safe list (default = false).
-    - **wickhunterDB**: Enable/disable using the default WickHunter bot coin list (default = false).
+    - **wickhunterDB**: Enable/disable using the default WickHunter bot coin list (default = true).
 
-- Double-click on the executable or run it from the terminal.
+- Double-click on the executable or run it from the terminal/commandprompt.
 
 ## Startup flags
 You can supply flags at startup. These are optional.  
@@ -68,6 +68,11 @@ There are changes to the `autoCoins.json` file.
 - Geo check at startup.
 - Update available check.
 
+### Added
+- Support for Wick Hunter v1.1.4 using the API.
+- Use Binance API weight limit to pause sending requests so you not over-run the Binance API limit.
+- Use Google Docs API to read [WH Pairs list - STP Todd](https://docs.google.com/spreadsheets/d/1XWadBbVkbdi5Ub7bFhCcAhqpHiQXBETbeTg644pkTdI/edit#gid=1034827699). [[*](#google-docs-api)]
+
 ### Fixes
 - Errors that resulted in the PowerShell script stopping:
   - Does/should not crash, but instead will skip the run and retry again after set _refresh_.
@@ -75,21 +80,15 @@ There are changes to the `autoCoins.json` file.
 - When Binance adds a new coin without enough historical data it skips the coin.
 - If the Binance API returns an error the program continues and does not crash. 
 
-### Added
-- Use Binance API weight limit to pause sending requests so you not over-run the API limit.
-- Use Google Docs API to read [WH Pairs list - STP Todd](https://docs.google.com/spreadsheets/d/1XWadBbVkbdi5Ub7bFhCcAhqpHiQXBETbeTg644pkTdI/edit#gid=1034827699). [[*](#google-docs-api)]
-- Specify which margin assets to trade.
-- Reading of WH v1.0 storage.db file. Currently it is not possible for WH bot to pickup changes made by AutoCoins. So when using _version_ 1 it only sends messages to Discord and does **not** update the WH bot. 
-
 ## Google Docs API
+When using this functionality the program will only use the pairs specified by either the permitted or safe account column.
+  
 **Update** You can leave this empty since v0.9.9 of AutoCoins  
   
-Using the Google Docs API requires an API Key.  
+Optionally you can create a Google Docs API Key.  
 See https://developers.google.com/docs/api/how-tos/authorizing#APIKey on how to create the key.  
 (Optional) Restrict the access to the `Google Sheets API` and restrict to the IP Address where AutoCoins is running.  
   
-When using this functionality the program will only use the pairs specified by either the permitted or safe account column.
-
 ## Compile from source
 - Download and install Go from https://golang.org/  
 - Clone the repo using git or download the source.

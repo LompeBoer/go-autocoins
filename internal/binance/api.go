@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-type BinanceAPI struct {
+type API struct {
 	DebugSaveResponses   bool      // DebugSaveResponses saves API responses to disk in the ./data dir.
 	DebugReadResponses   bool      // DebugReadResponses read API responses from disk.
 	BaseURL              string    // BaseURL the base url for the Binance API.
@@ -32,7 +32,7 @@ type BinanceAPI struct {
 	cancel               context.CancelFunc
 }
 
-type BinanceAPIParams struct {
+type APIParams struct {
 	DebugSaveResponses bool   // DebugSaveResponses saves API responses to disk in the ./data dir.
 	DebugReadResponses bool   // DebugReadResponses read API responses from disk.
 	BaseURL            string // BaseURL the base url for the Binance API.
@@ -41,8 +41,8 @@ type BinanceAPIParams struct {
 	ProxyPassword      string
 }
 
-func NewAPI(params BinanceAPIParams) BinanceAPI {
-	api := BinanceAPI{
+func NewAPI(params APIParams) *API {
+	api := API{
 		DebugSaveResponses: params.DebugSaveResponses,
 		DebugReadResponses: params.DebugReadResponses,
 		BaseURL:            params.BaseURL,
@@ -76,11 +76,12 @@ func NewAPI(params BinanceAPIParams) BinanceAPI {
 	ctx, cancel := context.WithCancel(context.Background())
 	api.context = ctx
 	api.cancel = cancel
+	api.client = client
 
-	return api
+	return &api
 }
 
-func (a *BinanceAPI) Cancel() {
+func (a *API) Cancel() {
 	a.cancel()
 }
 
@@ -156,7 +157,7 @@ type KLine struct {
 	Ignore                   string
 }
 
-func (a *BinanceAPI) GetExchangeInfo() (ExchangeInfo, error) {
+func (a *API) GetExchangeInfo() (ExchangeInfo, error) {
 	var exchangeInfo ExchangeInfo
 
 	url := a.BaseURL + "/fapi/v1/exchangeInfo"
@@ -182,7 +183,7 @@ func (a *BinanceAPI) GetExchangeInfo() (ExchangeInfo, error) {
 
 // GetTicker get the 24hr ticker data
 // https://binance-docs.github.io/apidocs/futures/en/#24hr-ticker-price-change-statistics
-func (a *BinanceAPI) GetTicker() ([]Ticker, error) {
+func (a *API) GetTicker() ([]Ticker, error) {
 	url := a.BaseURL + "/fapi/v1/ticker/24hr"
 	r, err := a.requestGet(url, false)
 	if err != nil {
@@ -221,7 +222,7 @@ const (
 
 // GetKLine return the candlestick data
 // https://binance-docs.github.io/apidocs/futures/en/#kline-candlestick-data
-func (a *BinanceAPI) GetKLine(symbol Symbol, limit int, interval KlineInterval) ([]KLine, error) {
+func (a *API) GetKLine(symbol Symbol, limit int, interval KlineInterval) ([]KLine, error) {
 	l := strconv.Itoa(limit)
 	url := fmt.Sprintf("%s/fapi/v1/klines?symbol=%s&interval=%s&limit=%s", a.BaseURL, symbol.Name, interval, l)
 	r, err := a.requestGet(url, false)
@@ -274,7 +275,7 @@ func (a *BinanceAPI) GetKLine(symbol Symbol, limit int, interval KlineInterval) 
 	return klines, nil
 }
 
-func (a *BinanceAPI) klineStringValue(value interface{}) string {
+func (a *API) klineStringValue(value interface{}) string {
 	switch v := value.(type) {
 	case string:
 		return v
@@ -286,7 +287,7 @@ func (a *BinanceAPI) klineStringValue(value interface{}) string {
 	return ""
 }
 
-func (a *BinanceAPI) klineInt64Value(value interface{}) int64 {
+func (a *API) klineInt64Value(value interface{}) int64 {
 	switch v := value.(type) {
 	case int64:
 		return v
@@ -302,7 +303,7 @@ func (a *BinanceAPI) klineInt64Value(value interface{}) int64 {
 }
 
 // pauseRequest sleeps for specified time. Returns true when finished, false when cancelled.
-func (a *BinanceAPI) pauseRequest(sleep time.Duration) bool {
+func (a *API) pauseRequest(sleep time.Duration) bool {
 	select {
 	case <-a.context.Done():
 		return false
@@ -311,7 +312,7 @@ func (a *BinanceAPI) pauseRequest(sleep time.Duration) bool {
 	}
 }
 
-func (a *BinanceAPI) requestGet(url string, skipWeightCheck bool) (*http.Response, error) {
+func (a *API) requestGet(url string, skipWeightCheck bool) (*http.Response, error) {
 	if !a.DebugReadResponses {
 		// TODO: do reset time based on exchangeInfo api call.
 		if time.Since(a.LastWeightUpdate) > time.Minute {
@@ -365,7 +366,7 @@ func (a *BinanceAPI) requestGet(url string, skipWeightCheck bool) (*http.Respons
 	}, nil
 }
 
-func (a *BinanceAPI) handleResponse(url string, body io.ReadCloser) []byte {
+func (a *API) handleResponse(url string, body io.ReadCloser) []byte {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(body)
 

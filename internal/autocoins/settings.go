@@ -17,6 +17,7 @@ type SettingsFilters struct {
 type Settings struct {
 	configFilename string
 	Version        int             `json:"version"`
+	API            string          `json:"api"`
 	Max1hrPercent  int             `json:"max1hrPercent"`
 	Max4hrPercent  int             `json:"max4hrPercent"`
 	Max24hrPercent int             `json:"max24hrPercent"`
@@ -92,6 +93,7 @@ func (s *Settings) LoadConfigFile(file string) bool {
 func (s *Settings) LoadDefaultConfig() {
 	*s = Settings{
 		Version:        1,
+		API:            "http://localhost:5001",
 		Max1hrPercent:  5,
 		Max4hrPercent:  5,
 		Max24hrPercent: 10,
@@ -126,5 +128,9 @@ func (s *Settings) ValidateSettings() {
 	}
 	if s.Refresh < 1 {
 		s.Refresh = 1
+	}
+	if s.Version == 1 && s.API == "" {
+		// TODO: disable write.
+		log.Println("No API URL set in config file.")
 	}
 }
