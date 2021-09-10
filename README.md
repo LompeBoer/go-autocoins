@@ -22,7 +22,7 @@ See her page for more great WH scripts.
 - The program **does not** blacklist coins that are in open positions.
 
 ## Instructions:
-- Drop the executable file and the json settings file into the same folder with your bot. **Make sure the folder is not located on your desktop but is a dedicated folder elsewhere on your drive.**
+- Drop the executable file and the json settings file into the same folder with your bot.
 - Make sure you have WickHunter bot version **v1.1.4** or higher.
 - Define the following in autoCoins.json file
   - **version**: set this to 1 when using WickHunter bot v1.1.4 (default = 1).
@@ -49,6 +49,7 @@ See her page for more great WH scripts.
     - **googleSheetSafe**: Enable/disable the Google Sheet _WH Pairs list_ safe list (default = false).
     - **wickhunterDB**: Enable/disable using the default WickHunter bot coin list (default = true).
 
+- Make sure Wick Hunter bot is open.
 - Double-click on the executable or run it from the terminal/commandprompt.
 
 ## Startup flags
@@ -57,16 +58,18 @@ You can supply flags at startup. These are optional.
 - **-noconfig**: use default settings without a config file
 - **-storage=path**: path to the storage file for WickHunter bot (default = storage.db).
 - **-version**: prints the current go-autocoins version.
-- **-pairs**: set pairs to permitted from the Google Sheet Pairs List and exits the program (Note: first close WH bot)
-- **-safepairs**: set safe pairs to permitted from the Google Sheet Pairs List and exits the program (Note: first close WH bot)
+- **-pairs**: set pairs to permitted from the Google Sheet Pairs List and exits the program (Note: WH has to be running)
+- **-safepairs**: set safe pairs to permitted from the Google Sheet Pairs List and exits the program (Note: WH has to be running)
 
 ## Difference with PowerShell autoCoins
 There are changes to the `autoCoins.json` file.  
+Wick Hunter has to be open.  
 
 ### Missing
 - Writing to a log file.
 - Geo check at startup.
 - Update available check.
+- Support for v0.6.6
 
 ### Added
 - Support for Wick Hunter v1.1.4 using the API.
