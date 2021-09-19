@@ -15,7 +15,7 @@ import (
 	"github.com/LompeBoer/go-autocoins/internal/wickhunter"
 )
 
-const VersionNumber = "0.9.13"
+const VersionNumber = "0.9.14"
 
 func main() {
 	flags := initFlags()

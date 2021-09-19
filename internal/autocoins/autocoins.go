@@ -168,6 +168,7 @@ type SymbolLists struct {
 	Permitted            []string // Permitted symbols allowed to trade.
 	PermittedCurrently   []string // PermittedCurrently symbols that were already being traded.
 	FailedToProcess      []string // FailedToProcess symbols that failed to retrieve enough data to make calculations.
+	NotTrading           []string // NotTrading coins that are excluded from trading.
 }
 
 // makeLists makes the SymbolLists object, this groups all the symbols in a certain list.
@@ -180,6 +181,7 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject) (SymbolLists, error) {
 	openPositions := []string{}
 	permittedCurrently := []string{}
 	quarantinedCurrently := []string{}
+	notTrading := []string{}
 	for _, p := range positions {
 		if p.IsOpen() {
 			openPositions = append(openPositions, p.Symbol)
@@ -192,10 +194,8 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject) (SymbolLists, error) {
 	}
 
 	// Quarantined / Permitted
-	quarantined := []SymbolDataObject{}
-	quarantinedNames := []string{}
-	permitted := []SymbolDataObject{}
-	permittedNames := []string{}
+	quarantined := []string{}
+	permitted := []string{}
 	quarantinedSkipped := []string{} // Skipped because it is currently being traded.
 	failed := []string{}
 	for _, object := range objects {
@@ -210,23 +210,19 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject) (SymbolLists, error) {
 
 			if object.Open {
 				// Open trades should still be permitted.
-				permitted = append(permitted, object)
-				permittedNames = append(permittedNames, object.Symbol.Name)
+				permitted = append(permitted, object.Symbol.Name)
 			}
 		} else if !object.Percent1Hour || !object.Percent24Hour || !object.Percent4Hour || !object.AllTimeHigh || !object.Age {
 			if !object.Open {
-				quarantined = append(quarantined, object)
-				quarantinedNames = append(quarantinedNames, object.Symbol.Name)
+				quarantined = append(quarantined, object.Symbol.Name)
 			} else {
 				quarantinedSkipped = append(quarantinedSkipped, object.Symbol.Name)
 
 				// Open trades should still be permitted.
-				permitted = append(permitted, object)
-				permittedNames = append(permittedNames, object.Symbol.Name)
+				permitted = append(permitted, object.Symbol.Name)
 			}
 		} else {
-			permitted = append(permitted, object)
-			permittedNames = append(permittedNames, object.Symbol.Name)
+			permitted = append(permitted, object.Symbol.Name)
 		}
 	}
 
@@ -234,13 +230,13 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject) (SymbolLists, error) {
 	for _, q := range quarantined {
 		found := false
 		for _, qc := range quarantinedCurrently {
-			if q.Symbol.Name == qc {
+			if q == qc {
 				found = true
 				break
 			}
 		}
 		if !found {
-			quarantinedNew = append(quarantinedNew, q.Symbol.Name)
+			quarantinedNew = append(quarantinedNew, q)
 		}
 	}
 
@@ -248,34 +244,50 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject) (SymbolLists, error) {
 	for _, p := range permitted {
 		found := false
 		for _, pc := range permittedCurrently {
-			if p.Symbol.Name == pc {
+			if p == pc {
 				found = true
 				break
 			}
 		}
 		if !found {
-			quarantinedRemoved = append(quarantinedRemoved, p.Symbol.Name)
+			quarantinedRemoved = append(quarantinedRemoved, p)
 		}
 	}
 
-	sort.Strings(quarantinedNames)
+	for _, p := range positions {
+		found := false
+		for _, pem := range permitted {
+			if p.Symbol == pem {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			notTrading = append(notTrading, p.Symbol)
+		}
+	}
+
+	sort.Strings(quarantined)
 	sort.Strings(quarantinedNew)
 	sort.Strings(quarantinedSkipped)
 	sort.Strings(quarantinedCurrently)
 	sort.Strings(quarantinedRemoved)
-	sort.Strings(permittedNames)
+	sort.Strings(permitted)
 	sort.Strings(permittedCurrently)
 	sort.Strings(failed)
+	sort.Strings(notTrading)
 
 	return SymbolLists{
-		Quarantined:          quarantinedNames,
+		Quarantined:          quarantined,
 		QuarantinedNew:       quarantinedNew,
 		QuarantinedSkipped:   quarantinedSkipped,
 		QuarantinedCurrently: quarantinedCurrently,
 		QuarantinedRemoved:   quarantinedRemoved,
-		Permitted:            permittedNames,
+		Permitted:            permitted,
 		PermittedCurrently:   permittedCurrently,
 		FailedToProcess:      failed,
+		NotTrading:           notTrading,
 	}, nil
 }
 

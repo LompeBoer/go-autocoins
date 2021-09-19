@@ -22,7 +22,12 @@ See her page for more great WH scripts.
 - The program **does not** blacklist coins that are in open positions.
 
 ## Instructions:
-- Drop the executable file and the json settings file into the same folder with your bot.
+- Download latest version from the [releases](https://github.com/LompeBoer/go-autocoins/releases) page.
+  - Windows `go-autocoins.windows-amd64.zip`
+  - Linux `go-autocoins.linux-amd64.tar.gz`
+  - Mac OS X `go-autocoins.darwin-amd64.tar.gz`
+- Extract the archive which contains the executable.
+- Drop the executable file and the json settings file `autoCoins.json` into the same folder with your bot.
 - Make sure you have WickHunter bot version **v1.1.4** or higher.
 - Define the following in autoCoins.json file
   - **version**: set this to 1 when using WickHunter bot v1.1.4 (default = 1).

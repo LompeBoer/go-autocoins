@@ -36,7 +36,7 @@ func (a *AutoCoins) RunLoop() {
 		a.OutputWriter.WriteError("ERROR: No permitted coins (no action performed)")
 	} else {
 		a.BackupDatabase()
-		a.BotAPI.UpdatePermittedList(lists.Permitted, lists.Quarantined)
+		a.BotAPI.UpdatePermittedList(lists.Permitted, lists.NotTrading)
 	}
 
 	a.outputRun(objects, lists, startTime)
