@@ -34,7 +34,11 @@ func (a *AutoCoins) GetInfo(pairsList []pairslist.Pair) ([]SymbolDataObject, Sym
 	if err != nil {
 		return nil, SymbolLists{}, err
 	}
-	symbols, err := a.filterSymbols(exchangeInfo.Symbols, pairsList)
+	usedSymbols, err := a.BotAPI.GetPositions()
+	if err != nil {
+		return nil, SymbolLists{}, fmt.Errorf("botapi:getpositions: %s", err.Error())
+	}
+	symbols, err := a.filterSymbols(usedSymbols, exchangeInfo.Symbols, pairsList)
 	if err != nil {
 		return nil, SymbolLists{}, fmt.Errorf("unable to filter symbols: %s", err.Error())
 	}
@@ -57,7 +61,12 @@ func (a *AutoCoins) GetInfo(pairsList []pairslist.Pair) ([]SymbolDataObject, Sym
 		objects = append(objects, object)
 	}
 
-	lists, err := a.makeLists(objects)
+	positions, err := a.BotAPI.GetPositions()
+	if err != nil {
+		return nil, SymbolLists{}, fmt.Errorf("botapi:getpositions: %s", err.Error())
+	}
+
+	lists, err := a.makeLists(objects, positions)
 	if err != nil {
 		return nil, SymbolLists{}, fmt.Errorf("unable to make list: %s", err.Error())
 	}
@@ -69,93 +78,6 @@ func (a *AutoCoins) GetInfo(pairsList []pairslist.Pair) ([]SymbolDataObject, Sym
 	}
 
 	return objects, lists, nil
-}
-
-// filterSymbols filters out the symbols from the exchangeInfo that are not used in the local storage file.
-// It also checks the MarginAssets setting and filters out any symbol which uses a margin asset not in this list.
-func (a *AutoCoins) filterSymbols(symbols []binance.Symbol, pairsList []pairslist.Pair) ([]binance.Symbol, error) {
-	usedSymbols, err := a.BotAPI.GetPositions()
-	if err != nil {
-		return nil, err
-	}
-
-	keepSymbol := func(s binance.Symbol, usedSymbols []wickhunter.Position) bool {
-		// Check if symbol is present in the WickHunter Bot Instrument table.
-		if a.Settings.Filters.WickHunterDB {
-			found := false
-			if a.Settings.Version == 1 {
-				for _, u := range usedSymbols {
-					if s.Name == u.Symbol {
-						found = true
-						break
-					}
-				}
-				if !found {
-					return false
-				}
-			}
-		}
-
-		// Check if symbol is on the blacklist in the settings file.
-		if a.Settings.Filters.Blacklist {
-			found := false
-			for _, b := range a.Settings.BlackList {
-				if s.Name == b {
-					found = true
-					break
-				}
-			}
-			if found {
-				return false
-			}
-		}
-
-		// Check if the margin asset is permitted in the settings file.
-		if a.Settings.Filters.MarginAssets && len(a.Settings.MarginAssets) > 0 {
-			found := false
-			for _, asset := range a.Settings.MarginAssets {
-				if s.MarginAsset == asset {
-					found = true
-					break
-				}
-			}
-			if !found {
-				return false
-			}
-		}
-
-		// Check if the symbol is permitted in the Google Doc file by STP Todd.
-		if a.Settings.Filters.GoogleSheetPermitted || a.Settings.Filters.GoogleSheetSafe {
-			found := false
-			for _, p := range pairsList {
-				if s.Name == p.Pair {
-					if p.IsPermitted {
-						found = true
-						break
-					}
-					if a.Settings.Filters.GoogleSheetSafe && p.IsSafeAccount {
-						found = true
-						break
-					}
-				}
-			}
-			if !found {
-				return false
-			}
-		}
-
-		return true
-	}
-
-	i := 0
-	for _, s := range symbols {
-		if keepSymbol(s, usedSymbols) {
-			symbols[i] = s
-			i++
-		}
-	}
-	symbols = symbols[:i]
-	return symbols, nil
 }
 
 // SymbolLists contains all the calculated lists.
@@ -172,12 +94,7 @@ type SymbolLists struct {
 }
 
 // makeLists makes the SymbolLists object, this groups all the symbols in a certain list.
-func (a *AutoCoins) makeLists(objects []SymbolDataObject) (SymbolLists, error) {
-	positions, err := a.BotAPI.GetPositions()
-	if err != nil {
-		return SymbolLists{}, fmt.Errorf("botapi:getpositions: %s", err.Error())
-	}
-
+func (a *AutoCoins) makeLists(objects []SymbolDataObject, positions []wickhunter.Position) (SymbolLists, error) {
 	openPositions := []string{}
 	permittedCurrently := []string{}
 	quarantinedCurrently := []string{}
