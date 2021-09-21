@@ -32,7 +32,7 @@ func main() {
 	} else {
 		go autoCoins.Run()
 
-		stop := make(chan os.Signal)
+		stop := make(chan os.Signal, 1)
 		signal.Notify(stop, os.Interrupt)
 		<-stop
 		autoCoins.Stop()
