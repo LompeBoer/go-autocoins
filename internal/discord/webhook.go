@@ -3,7 +3,7 @@ package discord
 import (
 	"bytes"
 	"encoding/json"
-	"log"
+	"fmt"
 	"net/http"
 )
 
@@ -29,10 +29,12 @@ func (w *DiscordWebHook) SendMessage(message DiscordWebhookMessage) error {
 	}
 
 	reader := bytes.NewReader(b)
-	_, err = http.Post(w.URL, "application/json", reader)
+	resp, err := http.Post(w.URL, "application/json", reader)
 	if err != nil {
-		log.Fatal(err)
 		return err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return fmt.Errorf("failed to post Discord webhook: %s", resp.Status)
 	}
 
 	return nil

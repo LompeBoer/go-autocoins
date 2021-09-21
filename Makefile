@@ -5,7 +5,7 @@ WINDOWS_OS=windows
 LINUX_OS=linux
 MAC_OS=darwin
 ARCH=amd64
-CMD=cmd/autocoins/main.go
+CMD=cmd/autocoins/*.go
 
 .PHONY: build bin-dir clean run test release
 
@@ -37,7 +37,7 @@ clean:
 	rm -rf $(BIN_DIR)
 
 run:
-	go run cmd/autocoins/main.go
+	go run cmd/autocoins/*.go
 
 test:
 	go test -v ./...

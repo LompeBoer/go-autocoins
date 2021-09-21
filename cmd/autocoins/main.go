@@ -7,20 +7,22 @@ import (
 	"os"
 	"os/signal"
 
-	_ "embed"
-
 	"github.com/LompeBoer/go-autocoins/internal/autocoins"
 	"github.com/LompeBoer/go-autocoins/internal/binance"
 	"github.com/LompeBoer/go-autocoins/internal/discord"
 	"github.com/LompeBoer/go-autocoins/internal/wickhunter"
 )
 
-const VersionNumber = "0.9.14"
+const (
+	VersionNumber = "0.9.15"
+)
 
 func main() {
 	flags := initFlags()
 
 	log.Printf("Starting autocoins (v%s)\n\n", VersionNumber)
+
+	checkLatestVersion()
 
 	settings := autocoins.LoadConfig(flags.ConfigFilename)
 

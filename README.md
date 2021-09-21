@@ -30,7 +30,7 @@ See her page for more great WH scripts.
 - Drop the executable file and the json settings file `autoCoins.json` into the same folder with your bot.
 - Make sure you have WickHunter bot version **v1.1.4** or higher.
 - Define the following in autoCoins.json file
-  - **version**: set this to 1 when using WickHunter bot v1.1.4 (default = 1).
+  - **version**: set this to 1 when using WickHunter bot v1.1.4 or higher (default = 1).
   - **api**: use `http://localhost:5001` for Binance and `http://localhost:5000` for ByBit (default = `http://localhost:5001`)
   - **max1hrPercent**: maximum 1hr price change percentage (default = 5).
   - **max4hrPercent**: maximum 4hr price change percentage (default = 5).
@@ -48,7 +48,7 @@ See her page for more great WH scripts.
   - **googleApiKey**: (optional) Google API Key to access [WH Pairs list - STP Todd](https://docs.google.com/spreadsheets/d/1XWadBbVkbdi5Ub7bFhCcAhqpHiQXBETbeTg644pkTdI/). [[*](#google-docs-api)]
   - **marginAssets**: list of margin assets to trade. Use empty list to not filter out any pairs (default = ["USDT"]).
   - **filters**: this controls which filters are used
-    - **blacklist**: Enable/disable the _blacklist_ (default = true).
+    - **blacklist**: Enable/disable the _blackList_ (default = true).
     - **marginAssets**: Enable/disable checking the _marginAssets_  (default = true).
     - **googleSheetPermitted**: Enable/disable the Google Sheet _WH Pairs list_ permitted list (default = false).
     - **googleSheetSafe**: Enable/disable the Google Sheet _WH Pairs list_ safe list (default = false).
@@ -73,13 +73,12 @@ Wick Hunter has to be open.
 ### Missing
 - Writing to a log file.
 - Geo check at startup.
-- Update available check.
 - Support for v0.6.6
 
 ### Added
 - Support for Wick Hunter v1.1.4 using the API.
 - Use Binance API weight limit to pause sending requests so you not over-run the Binance API limit.
-- Use Google Docs API to read [WH Pairs list - STP Todd](https://docs.google.com/spreadsheets/d/1XWadBbVkbdi5Ub7bFhCcAhqpHiQXBETbeTg644pkTdI/edit#gid=1034827699). [[*](#google-docs-api)]
+- Use Google Docs API to read [WH Pairs list - STP Todd](https://docs.google.com/spreadsheets/d/1XWadBbVkbdi5Ub7bFhCcAhqpHiQXBETbeTg644pkTdI). [[*](#google-docs-api)]
 
 ### Fixes
 - Errors that resulted in the PowerShell script stopping:
@@ -100,7 +99,7 @@ See https://developers.google.com/docs/api/how-tos/authorizing#APIKey on how to 
 ## Compile from source
 - Download and install Go from https://golang.org/  
 - Clone the repo using git or download the source.
-- Windows: Run `go build -o bin/go-autocoins.exe cmd/autocoins/main.go` from the project directory.
+- Windows: Run `go build -o bin/go-autocoins.exe cmd/autocoins/*.go` from the project directory.
 - Linux/MacOS: Run `make build` from the project directory.
 
 ## Suggestions and issues

@@ -24,7 +24,10 @@ func (w *OutputWriter) WriteResult(data []SymbolDataObject, lists SymbolLists) e
 	q := w.writeQuarantineMessage(lists)
 
 	for _, wr := range w.Writers {
-		wr.WriteResult(marketSwings, q)
+		err := wr.WriteResult(marketSwings, q)
+		if err != nil {
+			log.Printf("error writing results: %s\n", err.Error())
+		}
 	}
 	return nil
 }
@@ -32,7 +35,10 @@ func (w *OutputWriter) WriteResult(data []SymbolDataObject, lists SymbolLists) e
 // WriteError outputs the error message.
 func (w *OutputWriter) WriteError(message string) error {
 	for _, wr := range w.Writers {
-		wr.WriteError(message)
+		err := wr.WriteError(message)
+		if err != nil {
+			log.Printf("error writing error: %s\n", err.Error())
+		}
 	}
 	return nil
 }
@@ -120,7 +126,7 @@ func (w *DiscordOutputWriter) WriteResult(marketSwings []MarketSwing, q *Quarant
 	}
 
 	for _, market := range marketSwings {
-		valueLong := fmt.Sprintf("%.0f%% Long | %d Coins | Avg %.2f%% | Max %.2f%% %s\n", market.Positive.Percent, market.Positive.CoinCount, market.Positive.Average, market.Positive.Max, market.Positive.MaxCoin)
+		valueLong := fmt.Sprintf("%.0f%% Long | %d Coins | Avg %.2f%% | Max %.2f%% %s", market.Positive.Percent, market.Positive.CoinCount, market.Positive.Average, market.Positive.Max, market.Positive.MaxCoin)
 		valueShort := fmt.Sprintf("%.0f%% Short | %d Coins | Avg %.2f%% | Max %.2f%% %s", market.Negative.Percent, market.Negative.CoinCount, market.Negative.Average, market.Negative.Max, market.Negative.MaxCoin)
 		value := valueLong + "\n" + valueShort
 		color := 3066993
@@ -131,12 +137,17 @@ func (w *DiscordOutputWriter) WriteResult(marketSwings []MarketSwing, q *Quarant
 			Color: color,
 			Fields: []discord.DiscordEmbedField{
 				{
-					Name:   fmt.Sprintf("Last %s - %s\n", market.Timeframe, market.SwingMood),
+					Name:   fmt.Sprintf("Last %s - %s", market.Timeframe, market.SwingMood),
 					Value:  value,
 					Inline: false,
 				},
 			},
 		})
+	}
+
+	quarantinedValue := q.Quarantined
+	if len(quarantinedValue) == 0 {
+		quarantinedValue = "-"
 	}
 
 	coins := discord.DiscordEmbed{}
@@ -146,7 +157,7 @@ func (w *DiscordOutputWriter) WriteResult(marketSwings []MarketSwing, q *Quarant
 		})
 	}
 	coins.Fields = append(coins.Fields, discord.DiscordEmbedField{
-		Name: "Quarantined", Value: q.Quarantined, Inline: false,
+		Name: "Quarantined", Value: quarantinedValue, Inline: false,
 	})
 	if len(q.Unquarantined) > 0 {
 		coins.Fields = append(coins.Fields, discord.DiscordEmbedField{
