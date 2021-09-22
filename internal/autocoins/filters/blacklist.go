@@ -7,11 +7,14 @@ type BlackListFilter struct {
 }
 
 func (f *BlackListFilter) KeepSymbol(symbol binance.Symbol) bool {
-	for _, b := range f.BlackList {
-		if symbol.Name == b {
-			return false
+	return !blackListContainsSymbol(f.BlackList, symbol.Name)
+}
+
+func blackListContainsSymbol(a []string, x string) bool {
+	for _, v := range a {
+		if v == x {
+			return true
 		}
 	}
-
-	return true
+	return false
 }

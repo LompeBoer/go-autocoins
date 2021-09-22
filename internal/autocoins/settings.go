@@ -4,36 +4,54 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"sort"
 )
 
+type SettingsAutoCoins struct {
+	Max1hrPercent  int `json:"max1hrPercent"`
+	Max4hrPercent  int `json:"max4hrPercent"`
+	Max24hrPercent int `json:"max24hrPercent"`
+	CooldownHours  int `json:"cooldownHrs"`
+	MinAthPercent  int `json:"minAthPercent"`
+	MinAge         int `json:"minAge"`
+	Refresh        int `json:"refresh"`
+}
+
+type SettingsFilterGoogleSheet struct {
+	Enabled   bool     `json:"enabled"`
+	Safe      bool     `json:"safe"`
+	WhiteList []string `json:"whiteList"`
+	APIKey    string   `json:"apiKey"`
+}
+
 type SettingsFilters struct {
-	Blacklist            bool `json:"blacklist"`
-	MarginAssets         bool `json:"marginAssets"`
-	GoogleSheetPermitted bool `json:"googleSheetPermitted"`
-	GoogleSheetSafe      bool `json:"googleSheetSafe"`
-	WickHunterDB         bool `json:"wickhunterDB"`
+	BlackList    []string                  `json:"blackList"`
+	ExcludeList  []string                  `json:"excludeList"`
+	MarginAssets []string                  `json:"marginAssets"`
+	GoogleSheet  SettingsFilterGoogleSheet `json:"googleSheet"`
+	WickHunterDB bool                      `json:"wickHunterDB"`
+}
+
+type SettingsDiscord struct {
+	WebHook        string `json:"webHook"`
+	MentionOnError bool   `json:"mentionOnError"`
+}
+
+type SettingsProxy struct {
+	Address  string `json:"address"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 type Settings struct {
 	configFilename string
-	Version        int             `json:"version"`
-	API            string          `json:"api"`
-	Max1hrPercent  int             `json:"max1hrPercent"`
-	Max4hrPercent  int             `json:"max4hrPercent"`
-	Max24hrPercent int             `json:"max24hrPercent"`
-	MinAthPercent  int             `json:"minAthPercent"`
-	MinAge         int             `json:"minAge"`
-	Refresh        int             `json:"refresh"`
-	Proxy          string          `json:"proxy"`
-	ProxyUser      string          `json:"proxyUser"`
-	ProxyPass      string          `json:"proxyPass"`
-	Discord        string          `json:"discord"`
-	MentionOnError bool            `json:"mentionOnError"`
-	BlackList      []string        `json:"blackList"`
-	CooldownHours  int             `json:"cooldownHrs"`
-	GoogleApiKey   string          `json:"googleApiKey"`
-	MarginAssets   []string        `json:"marginAssets"`
-	Filters        SettingsFilters `json:"filters"`
+	Version        int               `json:"version"`
+	API            string            `json:"api"`
+	Exchange       string            `json:"exchange"`
+	AutoCoins      SettingsAutoCoins `json:"autoCoins"`
+	Filters        SettingsFilters   `json:"filters"`
+	Discord        SettingsDiscord   `json:"discord"`
+	Proxy          SettingsProxy     `json:"proxy"`
 }
 
 func LoadConfig(file string) *Settings {
@@ -47,6 +65,7 @@ func LoadConfig(file string) *Settings {
 	}
 
 	s.ValidateSettings()
+	s.PostProcess()
 	s.configFilename = file
 	return &s
 }
@@ -54,6 +73,8 @@ func LoadConfig(file string) *Settings {
 func (s *Settings) ReloadConfig() *Settings {
 	file := s.configFilename
 	settings := LoadConfig(file)
+	settings.ValidateSettings()
+	settings.PostProcess()
 	settings.configFilename = file
 	return settings
 }
@@ -70,20 +91,13 @@ func (s *Settings) LoadConfigFile(file string) bool {
 		return false
 	}
 
-	var settings []Settings
+	var settings Settings
 	if err := json.Unmarshal(data, &settings); err != nil {
 		log.Printf("Error unmarshal config file: %s\n", err.Error())
 		return false
 	}
 
-	if len(settings) == 0 {
-		log.Printf("No settings found in the config file '%s'\n", file)
-		return false
-	} else if len(settings) > 1 {
-		log.Printf("Multiple settings found in config file '%s', using the first one\n", file)
-	}
-
-	*s = settings[0]
+	*s = settings
 
 	log.Printf("Loaded settings from config file '%s'\n", file)
 
@@ -92,30 +106,40 @@ func (s *Settings) LoadConfigFile(file string) bool {
 
 func (s *Settings) LoadDefaultConfig() {
 	*s = Settings{
-		Version:        1,
-		API:            "http://localhost:5001",
-		Max1hrPercent:  5,
-		Max4hrPercent:  5,
-		Max24hrPercent: 10,
-		MinAthPercent:  5,
-		MinAge:         14,
-		Refresh:        15,
-		Proxy:          "",
-		ProxyUser:      "",
-		ProxyPass:      "",
-		Discord:        "",
-		BlackList: []string{
-			"BTCUSDT", "ETHUSDT", "YFIUSDT", "DEFIUSDT", "DOGEUSDT",
+		Version:  1,
+		API:      "http://localhost:5001",
+		Exchange: "binance",
+		AutoCoins: SettingsAutoCoins{
+			Max1hrPercent:  5,
+			Max4hrPercent:  5,
+			Max24hrPercent: 10,
+			CooldownHours:  4,
+			MinAthPercent:  5,
+			MinAge:         14,
+			Refresh:        15,
 		},
-		CooldownHours:  4,
-		MarginAssets:   []string{"USDT"},
-		MentionOnError: false,
 		Filters: SettingsFilters{
-			Blacklist:            true,
-			MarginAssets:         true,
-			GoogleSheetPermitted: false,
-			GoogleSheetSafe:      false,
-			WickHunterDB:         false,
+			BlackList: []string{
+				"BTCUSDT", "ETHUSDT", "YFIUSDT", "DEFIUSDT", "DOGEUSDT",
+			},
+			ExcludeList:  []string{},
+			MarginAssets: []string{"USDT"},
+			GoogleSheet: SettingsFilterGoogleSheet{
+				Enabled:   false,
+				Safe:      false,
+				WhiteList: []string{},
+				APIKey:    "",
+			},
+			WickHunterDB: true,
+		},
+		Discord: SettingsDiscord{
+			WebHook:        "",
+			MentionOnError: false,
+		},
+		Proxy: SettingsProxy{
+			Address:  "",
+			Username: "",
+			Password: "",
 		},
 	}
 
@@ -123,14 +147,19 @@ func (s *Settings) LoadDefaultConfig() {
 }
 
 func (s *Settings) ValidateSettings() {
-	if s.Version == 0 && len(s.MarginAssets) == 0 {
-		s.MarginAssets = []string{"USDT"}
+	if s.AutoCoins.Refresh < 1 {
+		s.AutoCoins.Refresh = 1
 	}
-	if s.Refresh < 1 {
-		s.Refresh = 1
+	if s.API == "" {
+		log.Fatal("No API URL set in config file.")
 	}
-	if s.Version == 1 && s.API == "" {
-		// TODO: disable write.
-		log.Println("No API URL set in config file.")
-	}
+
+	s.Filters.WickHunterDB = true
+}
+
+func (s *Settings) PostProcess() {
+	sort.Strings(s.Filters.BlackList)
+	sort.Strings(s.Filters.ExcludeList)
+	sort.Strings(s.Filters.GoogleSheet.WhiteList)
+	sort.Strings(s.Filters.MarginAssets)
 }

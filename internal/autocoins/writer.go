@@ -48,6 +48,7 @@ type QuarantineMessages struct {
 	Quarantined    string
 	Unquarantined  string
 	OpenPositions  string
+	Excluded       string
 	Failed         string
 }
 
@@ -57,6 +58,7 @@ func (w *OutputWriter) writeQuarantineMessage(lists SymbolLists) *QuarantineMess
 		Quarantined:    strings.Join(lists.Quarantined, ", "),
 		Unquarantined:  strings.Join(lists.QuarantinedRemoved, ", "),
 		OpenPositions:  strings.Join(lists.QuarantinedSkipped, ", "),
+		Excluded:       strings.Join(lists.QuarantinedExcluded, ", "),
 		Failed:         strings.Join(lists.FailedToProcess, ", "),
 	}
 }
@@ -83,6 +85,9 @@ func (w *ConsoleOutputWriter) WriteResult(marketSwings []MarketSwing, q *Quarant
 	}
 	if len(q.OpenPositions) > 0 {
 		fmt.Fprintf(&d, "OPEN POSITIONS - NOT QUARANTINED: %s\n", q.OpenPositions)
+	}
+	if len(q.Excluded) > 0 {
+		fmt.Fprintf(&d, "EXCLUDED - NOT QUARANTINED: %s\n", q.Excluded)
 	}
 	if len(q.Failed) > 0 {
 		fmt.Fprintf(&d, "FAILED TO PROCESS: %s\n", q.Failed)
@@ -167,6 +172,11 @@ func (w *DiscordOutputWriter) WriteResult(marketSwings []MarketSwing, q *Quarant
 	if len(q.OpenPositions) > 0 {
 		coins.Fields = append(coins.Fields, discord.DiscordEmbedField{
 			Name: "Open positions - not quarantined", Value: q.OpenPositions, Inline: false,
+		})
+	}
+	if len(q.Excluded) > 0 {
+		coins.Fields = append(coins.Fields, discord.DiscordEmbedField{
+			Name: "Excluded - not quarantined", Value: q.Excluded, Inline: false,
 		})
 	}
 	if len(q.Failed) > 0 {

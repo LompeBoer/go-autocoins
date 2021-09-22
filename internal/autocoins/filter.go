@@ -18,16 +18,20 @@ func (a *AutoCoins) createFilters(usedSymbols []wickhunter.Position, symbols []b
 		filterList = append(filterList, &filters.WickHunterDBFilter{Positions: usedSymbols})
 	}
 	// Check if symbol is on the blacklist in the settings file.
-	if a.Settings.Filters.Blacklist {
-		filterList = append(filterList, &filters.BlackListFilter{BlackList: a.Settings.BlackList})
+	if len(a.Settings.Filters.BlackList) > 0 {
+		filterList = append(filterList, &filters.BlackListFilter{BlackList: a.Settings.Filters.BlackList})
 	}
 	// Check if the margin asset is permitted in the settings file.
-	if a.Settings.Filters.MarginAssets && len(a.Settings.MarginAssets) > 0 {
-		filterList = append(filterList, &filters.MarginAssetsFilter{MarginAssets: a.Settings.MarginAssets})
+	if len(a.Settings.Filters.MarginAssets) > 0 {
+		filterList = append(filterList, &filters.MarginAssetsFilter{MarginAssets: a.Settings.Filters.MarginAssets})
 	}
 	// Check if the symbol is permitted in the Google Doc file by STP Todd.
-	if a.Settings.Filters.GoogleSheetPermitted || a.Settings.Filters.GoogleSheetSafe {
-		filterList = append(filterList, &filters.GoogleSheetFilter{PairsList: pairsList, UseSafeList: a.Settings.Filters.GoogleSheetSafe})
+	if a.Settings.Filters.GoogleSheet.Enabled {
+		filterList = append(filterList, &filters.GoogleSheetFilter{
+			PairsList:   pairsList,
+			WhiteList:   a.Settings.Filters.GoogleSheet.WhiteList,
+			UseSafeList: a.Settings.Filters.GoogleSheet.Safe,
+		})
 	}
 
 	return filterList
@@ -39,6 +43,10 @@ func (a *AutoCoins) filterSymbols(usedSymbols []wickhunter.Position, symbols []b
 	filters := a.createFilters(usedSymbols, symbols, pairsList)
 
 	keepSymbol := func(symbol binance.Symbol) bool {
+		if ContainsStringSorted(a.Settings.Filters.ExcludeList, symbol.Name) {
+			return true
+		}
+
 		for _, filter := range filters {
 			if !filter.KeepSymbol(symbol) {
 				return false

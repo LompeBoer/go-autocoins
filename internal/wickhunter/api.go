@@ -70,6 +70,12 @@ type Position struct {
 	State     string `json:"state"`
 }
 
+type BySymbolName []Position
+
+func (a BySymbolName) Len() int           { return len(a) }
+func (a BySymbolName) Less(i, j int) bool { return a[i].Symbol < a[j].Symbol }
+func (a BySymbolName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
 func (a *API) GetPositions() ([]Position, error) {
 	url := fmt.Sprintf("%s/bot/positions", a.BaseURL)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -80,8 +86,6 @@ func (a *API) GetPositions() ([]Position, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// fmt.Printf("%s (%d)\n", url, resp.StatusCode)
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return nil, fmt.Errorf("response status code is '%d' (%s)", resp.StatusCode, resp.Status)

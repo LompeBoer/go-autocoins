@@ -58,9 +58,8 @@ func TestMakeLists(t *testing.T) {
 func TestFilterSymbols(t *testing.T) {
 	a := AutoCoins{
 		Settings: Settings{
-			BlackList: []string{"TEST"},
 			Filters: SettingsFilters{
-				Blacklist: true,
+				BlackList: []string{"TEST"},
 			},
 		},
 	}

@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	VersionNumber = "0.9.15"
+	VersionNumber = "0.10.0-pre"
 )
 
 func main() {
@@ -43,17 +43,17 @@ func main() {
 func initAutoCoins(settings *autocoins.Settings, storageFilename string) autocoins.AutoCoins {
 	discordHook := discord.DiscordWebHook{
 		Enabled: true,
-		URL:     settings.Discord,
+		URL:     settings.Discord.WebHook,
 	}
 	autoCoins := autocoins.AutoCoins{
 		Settings: *settings,
 		ExchangeAPI: binance.NewAPI(binance.APIParams{
 			BaseURL:            "https://fapi.binance.com",
-			ProxyURL:           settings.Proxy,
-			ProxyUser:          settings.ProxyUser,
-			ProxyPassword:      settings.ProxyPass,
+			ProxyURL:           settings.Proxy.Address,
+			ProxyUser:          settings.Proxy.Username,
+			ProxyPassword:      settings.Proxy.Password,
 			DebugSaveResponses: false,
-			DebugReadResponses: false,
+			DebugReadResponses: true,
 		}),
 		BotAPI:                     wickhunter.NewAPI(settings.API),
 		MaxFailedSymbolsPercentage: 0.1,
@@ -65,7 +65,7 @@ func initAutoCoins(settings *autocoins.Settings, storageFilename string) autocoi
 				&autocoins.DiscordOutputWriter{
 					WebHook:        discordHook,
 					Version:        VersionNumber,
-					MentionOnError: settings.MentionOnError,
+					MentionOnError: settings.Discord.MentionOnError,
 				},
 			},
 		},

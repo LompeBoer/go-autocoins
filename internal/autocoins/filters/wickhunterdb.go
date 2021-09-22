@@ -10,8 +10,12 @@ type WickHunterDBFilter struct {
 }
 
 func (f *WickHunterDBFilter) KeepSymbol(symbol binance.Symbol) bool {
-	for _, u := range f.Positions {
-		if symbol.Name == u.Symbol {
+	return positionContainsSymbol(f.Positions, symbol.Name)
+}
+
+func positionContainsSymbol(a []wickhunter.Position, x string) bool {
+	for _, u := range a {
+		if x == u.Symbol {
 			return true
 		}
 	}

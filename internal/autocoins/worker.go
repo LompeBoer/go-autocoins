@@ -18,8 +18,8 @@ func (a *AutoCoins) RunLoop() {
 
 	// Download the permitted and safe pairs list from Google Docs.
 	var pairsList []pairslist.Pair
-	if a.Settings.Filters.GoogleSheetPermitted || a.Settings.Filters.GoogleSheetSafe {
-		list, err := pairslist.ReadWithKey(a.Settings.GoogleApiKey)
+	if a.Settings.Filters.GoogleSheet.Enabled {
+		list, err := pairslist.ReadWithKey(a.Settings.Filters.GoogleSheet.APIKey)
 		if err != nil {
 			a.OutputWriter.WriteError(fmt.Sprintf("Unable to retrieve Google Doc WickHunter Pairs List: %s", err.Error()))
 		}
@@ -43,12 +43,14 @@ func (a *AutoCoins) RunLoop() {
 }
 
 func (a *AutoCoins) outputRun(objects []SymbolDataObject, lists SymbolLists, startTime time.Time) {
-	a.OutputWriter.WriteResult(objects, lists)
+	if len(objects) > 0 {
+		a.OutputWriter.WriteResult(objects, lists)
 
-	p := len(lists.Permitted)
-	q := len(lists.Quarantined)
+		p := len(lists.Permitted)
+		q := len(lists.Quarantined)
+		log.Printf("Permitted: %d Quarantined: %d Total: %d\n", p, q, p+q)
+	}
 
-	log.Printf("Permitted: %d Quarantined: %d Total: %d\n", p, q, p+q)
 	log.Printf("Elapsed: %s\n", time.Since(startTime))
 	log.Printf("API Weight used: %d/%d\n", a.ExchangeAPI.UsedWeight, a.ExchangeAPI.WeightLimit)
 }
@@ -68,7 +70,7 @@ func (a *AutoCoins) Run() {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Duration(a.Settings.Refresh) * time.Minute):
+		case <-time.After(time.Duration(a.Settings.AutoCoins.Refresh) * time.Minute):
 			a.ReloadConfig()
 		}
 	}

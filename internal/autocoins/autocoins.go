@@ -34,10 +34,13 @@ func (a *AutoCoins) GetInfo(pairsList []pairslist.Pair) ([]SymbolDataObject, Sym
 	if err != nil {
 		return nil, SymbolLists{}, err
 	}
+
 	usedSymbols, err := a.BotAPI.GetPositions()
 	if err != nil {
 		return nil, SymbolLists{}, fmt.Errorf("botapi:getpositions: %s", err.Error())
 	}
+
+	// Remove symbols from the list based on the enabled filters.
 	symbols, err := a.filterSymbols(usedSymbols, exchangeInfo.Symbols, pairsList)
 	if err != nil {
 		return nil, SymbolLists{}, fmt.Errorf("unable to filter symbols: %s", err.Error())
@@ -85,6 +88,7 @@ type SymbolLists struct {
 	Quarantined          []string // Quarantined symbols to quarantine.
 	QuarantinedNew       []string // QuarantinedNew newly added symbols to the quarantine list.
 	QuarantinedSkipped   []string // QuarantinedSkipped should be quarantined but have currently open trade.
+	QuarantinedExcluded  []string // QuarantinedExcluded should be quarantined but have been excluded.
 	QuarantinedCurrently []string // QuarantinedCurrently already quarantined.
 	QuarantinedRemoved   []string // QuarantinedRemoved no longer quarantined.
 	Permitted            []string // Permitted symbols allowed to trade.
@@ -98,7 +102,6 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject, positions []wickhunter
 	openPositions := []string{}
 	permittedCurrently := []string{}
 	quarantinedCurrently := []string{}
-	notTrading := []string{}
 	for _, p := range positions {
 		if p.IsOpen() {
 			openPositions = append(openPositions, p.Symbol)
@@ -110,67 +113,68 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject, positions []wickhunter
 		}
 	}
 
+	sort.Strings(openPositions)
+	sort.Strings(permittedCurrently)
+	sort.Strings(quarantinedCurrently)
+
 	// Quarantined / Permitted
 	quarantined := []string{}
 	permitted := []string{}
-	quarantinedSkipped := []string{} // Skipped because it is currently being traded.
+	quarantinedSkipped := []string{}  // Skipped because it is currently being traded.
+	quarantinedExcluded := []string{} // Skipped because it is excluded.
 	failed := []string{}
 	for _, object := range objects {
-		for _, openSymbol := range openPositions {
-			if openSymbol == object.Symbol.Name {
-				object.Open = true
-				break
-			}
+		if ContainsString(openPositions, object.Symbol.Name) {
+			object.Open = true
 		}
+		if ContainsString(a.Settings.Filters.ExcludeList, object.Symbol.Name) {
+			object.Excluded = true
+		}
+
 		if object.APIFailed {
 			failed = append(failed, object.Symbol.Name)
 
-			if object.Open {
+			if object.Open || object.Excluded {
 				// Open trades should still be permitted.
 				permitted = append(permitted, object.Symbol.Name)
 			}
 		} else if !object.Percent1Hour || !object.Percent24Hour || !object.Percent4Hour || !object.AllTimeHigh || !object.Age {
-			if !object.Open {
-				quarantined = append(quarantined, object.Symbol.Name)
-			} else {
+			if object.Open {
 				quarantinedSkipped = append(quarantinedSkipped, object.Symbol.Name)
-
-				// Open trades should still be permitted.
 				permitted = append(permitted, object.Symbol.Name)
+			} else if object.Excluded {
+				quarantinedExcluded = append(quarantinedExcluded, object.Symbol.Name)
+				permitted = append(permitted, object.Symbol.Name)
+			} else {
+				quarantined = append(quarantined, object.Symbol.Name)
 			}
 		} else {
 			permitted = append(permitted, object.Symbol.Name)
 		}
 	}
+	sort.Strings(quarantined)
+	sort.Strings(permitted)
+	sort.Strings(quarantinedSkipped)
+	sort.Strings(quarantinedExcluded)
+	sort.Strings(failed)
 
 	quarantinedNew := []string{}
 	for _, q := range quarantined {
-		found := false
-		for _, qc := range quarantinedCurrently {
-			if q == qc {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !ContainsString(quarantinedCurrently, q) {
 			quarantinedNew = append(quarantinedNew, q)
 		}
 	}
+	sort.Strings(quarantinedNew)
 
 	quarantinedRemoved := []string{}
 	for _, p := range permitted {
-		found := false
-		for _, pc := range permittedCurrently {
-			if p == pc {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !ContainsString(permittedCurrently, p) {
 			quarantinedRemoved = append(quarantinedRemoved, p)
 		}
 	}
+	sort.Strings(quarantinedRemoved)
 
+	notTrading := []string{}
 	for _, p := range positions {
 		found := false
 		for _, pem := range permitted {
@@ -184,21 +188,13 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject, positions []wickhunter
 			notTrading = append(notTrading, p.Symbol)
 		}
 	}
-
-	sort.Strings(quarantined)
-	sort.Strings(quarantinedNew)
-	sort.Strings(quarantinedSkipped)
-	sort.Strings(quarantinedCurrently)
-	sort.Strings(quarantinedRemoved)
-	sort.Strings(permitted)
-	sort.Strings(permittedCurrently)
-	sort.Strings(failed)
 	sort.Strings(notTrading)
 
 	return SymbolLists{
 		Quarantined:          quarantined,
 		QuarantinedNew:       quarantinedNew,
 		QuarantinedSkipped:   quarantinedSkipped,
+		QuarantinedExcluded:  quarantinedExcluded,
 		QuarantinedCurrently: quarantinedCurrently,
 		QuarantinedRemoved:   quarantinedRemoved,
 		Permitted:            permitted,
@@ -219,8 +215,8 @@ func (a *AutoCoins) CalculateAllSymbolData(symbols []binance.Symbol, prices24Hou
 
 func (a *AutoCoins) CalculateSymbolData(symbol binance.Symbol, prices24Hours []binance.Ticker, c chan SymbolDataObject) {
 	minCandles := 4
-	if a.Settings.CooldownHours >= 4 {
-		minCandles = a.Settings.CooldownHours
+	if a.Settings.AutoCoins.CooldownHours >= 4 {
+		minCandles = a.Settings.AutoCoins.CooldownHours
 	}
 	dateTime := time.Now()
 	limit := minCandles * 60
@@ -269,7 +265,7 @@ func (a *AutoCoins) CalculateSymbolData(symbol binance.Symbol, prices24Hours []b
 
 func (a *AutoCoins) calculateSymbolResults(symbol binance.Symbol, percent1Hour []float64, current4HoursPercent float64, current24HoursPercent float64, currentPercentageATH float64, age int, dateTime time.Time) SymbolDataObject {
 	// 1 hour percent
-	x := a.Settings.CooldownHours - 1
+	x := a.Settings.AutoCoins.CooldownHours - 1
 	values1HrPercent := percent1Hour[:x]
 	max := 0.0
 	for _, val := range values1HrPercent {
@@ -278,20 +274,20 @@ func (a *AutoCoins) calculateSymbolResults(symbol binance.Symbol, percent1Hour [
 			max = v
 		}
 	}
-	result1HrPercent := max < float64(a.Settings.Max1hrPercent)
+	result1HrPercent := max < float64(a.Settings.AutoCoins.Max1hrPercent)
 
 	// 4 hour percent
-	result4HrPercent := math.Abs(current4HoursPercent) < float64(a.Settings.Max4hrPercent)
+	result4HrPercent := math.Abs(current4HoursPercent) < float64(a.Settings.AutoCoins.Max4hrPercent)
 	values4HrPercent := current4HoursPercent
 
 	// 24 hour percent
-	result24HrPercent := math.Abs(current24HoursPercent) < float64(a.Settings.Max24hrPercent)
+	result24HrPercent := math.Abs(current24HoursPercent) < float64(a.Settings.AutoCoins.Max24hrPercent)
 	values24HrPercent := current24HoursPercent
 
-	resultAth := currentPercentageATH > float64(a.Settings.MinAthPercent)
+	resultAth := currentPercentageATH > float64(a.Settings.AutoCoins.MinAthPercent)
 	valuesAth := currentPercentageATH
 
-	resultAge := age > a.Settings.MinAge
+	resultAge := age > a.Settings.AutoCoins.MinAge
 	valueAge := age
 
 	return SymbolDataObject{
@@ -334,4 +330,5 @@ type SymbolDataObject struct {
 	Open               bool           `json:"Open"`
 	Time               time.Time      `json:"dateTime"`
 	APIFailed          bool           `json:"apiFailed"`
+	Excluded           bool           `json:"excluded"`
 }

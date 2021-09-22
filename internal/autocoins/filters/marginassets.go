@@ -7,8 +7,12 @@ type MarginAssetsFilter struct {
 }
 
 func (f *MarginAssetsFilter) KeepSymbol(symbol binance.Symbol) bool {
-	for _, asset := range f.MarginAssets {
-		if symbol.MarginAsset == asset {
+	return marginAssetsContainsSymbol(f.MarginAssets, symbol.MarginAsset)
+}
+
+func marginAssetsContainsSymbol(a []string, x string) bool {
+	for _, v := range a {
+		if v == x {
 			return true
 		}
 	}

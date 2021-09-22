@@ -32,28 +32,31 @@ See her page for more great WH scripts.
 - Define the following in autoCoins.json file
   - **version**: set this to 1 when using WickHunter bot v1.1.4 or higher (default = 1).
   - **api**: use `http://localhost:5001` for Binance and `http://localhost:5000` for ByBit (default = `http://localhost:5001`)
-  - **max1hrPercent**: maximum 1hr price change percentage (default = 5).
-  - **max4hrPercent**: maximum 4hr price change percentage (default = 5).
-  - **max24hrPercent**: maximum 24hr price change percentage (default = 10).
-  - **cooldownHrs**: the number of 1hr candles into the past to check for the price changes. Example: if the number is 4 (default), the bot will quarantine coins that had a 1hr price change more than defined in _max1hrPercent_ within the past X _cooldownHrs_ (default = 4). Note: cooldown only applies to 1hr changes, not to ATH or 24hr price changes.
-  - **minAthPercent**: minimum proximity to ATH in percent (default = 5). Note: due to Binance limitations, the ATH is only pulled from the last 20 months, so it's not a true All Time High, but ATH-ish.
-  - **minAge**: minimum coin age in days (default = 14).
-  - **refresh**: the period in minutes of how often to check (recommended minimum 15 mins due to possibility of over-running your API limit) (default = 15).
-  - **proxy**: (optional) IP proxy and port to use (example "http://25.12.124.35:2763"). Leave blank if no proxy used ("").
-  - **proxyUser**: (optional) proxy user.
-  - **proxyPass**: (optional) proxy password.
-  - **discord**: (optional) your discord webhook.
-  - **mentionOnError**: use @here mention on Discord when an error occurs. (default = true)
-  - **blacklist**: permanently blacklisted coins.
-  - **googleApiKey**: (optional) Google API Key to access [WH Pairs list - STP Todd](https://docs.google.com/spreadsheets/d/1XWadBbVkbdi5Ub7bFhCcAhqpHiQXBETbeTg644pkTdI/). [[*](#google-docs-api)]
-  - **marginAssets**: list of margin assets to trade. Use empty list to not filter out any pairs (default = ["USDT"]).
+  - **exchange**: the exchange to get data from. Only Binance is available for now (default = binance).
+  - **autoCoins**:
+    - **max1hrPercent**: maximum 1hr price change percentage (default = 5).
+    - **max4hrPercent**: maximum 4hr price change percentage (default = 5).
+    - **max24hrPercent**: maximum 24hr price change percentage (default = 10).
+    - **cooldownHrs**: the number of 1hr candles into the past to check for the price changes. Example: if the number is 4 (default), the bot will quarantine coins that had a 1hr price change more than defined in _max1hrPercent_ within the past X _cooldownHrs_ (default = 4). Note: cooldown only applies to 1hr changes, not to ATH or 24hr price changes.
+    - **minAthPercent**: minimum proximity to ATH in percent (default = 5). Note: due to Binance limitations, the ATH is only pulled from the last 20 months, so it's not a true All Time High, but ATH-ish.
+    - **minAge**: minimum coin age in days (default = 14).
+    - **refresh**: the period in minutes of how often to check (recommended minimum 15 mins due to possibility of over-running your API limit) (default = 15).
   - **filters**: this controls which filters are used
-    - **blacklist**: Enable/disable the _blackList_ (default = true).
-    - **marginAssets**: Enable/disable checking the _marginAssets_  (default = true).
-    - **googleSheetPermitted**: Enable/disable the Google Sheet _WH Pairs list_ permitted list (default = false).
-    - **googleSheetSafe**: Enable/disable the Google Sheet _WH Pairs list_ safe list (default = false).
-    - **wickhunterDB**: Enable/disable using the default WickHunter bot coin list (default = true).
-
+    - **blackList**: permanently blacklisted coins.
+    - **excludeList**: coins on this list will not be quarantined. (default = [])
+    - **marginAssets**: list of margin assets to trade, [read more](#margin-assets) (default = ["USDT"]).
+    - **googleSheet**: [read more](#google-sheet)
+      - **enabled**: enable/disable using the Google Sheet _WH Pairs list - STP Todd_ (default = false).
+      - **safe**: use the column _SAFE ACCOUNT_ (default = false).
+      - **whiteList**: overrides the sheet setting and treats these as being "safe". (default = [])
+      - **apiKey**: (optional) Google API Key, [read more](#google-docs-api).
+  - **discord**:
+    - **webHook**: (optional) your discord webhook.
+    - **mentionOnError**: use @here mention on Discord when an error occurs. (default = true)
+  - **proxy**:
+    - **address**: (optional) IP proxy and port to use (example "http://25.12.124.35:2763"). Leave blank if no proxy used ("").
+    - **username**: (optional) proxy user.
+    - **password**: (optional) proxy password.
 - Make sure Wick Hunter bot is open.
 - Double-click on the executable or run it from the terminal/commandprompt.
 
@@ -66,33 +69,42 @@ You can supply flags at startup. These are optional.
 - **-pairs**: set pairs to permitted from the Google Sheet Pairs List and exits the program (Note: WH has to be running)
 - **-safepairs**: set safe pairs to permitted from the Google Sheet Pairs List and exits the program (Note: WH has to be running)
 
+## Filters
+### WickHunter DB
+Only coins in the WickHunter database will be used. 
+If Binance has coins not present in WickHunter these new coins will not be processed.  
+This filter is always active and can not be disabled.  
+
+### Black List
+This will permanently exclude coins from being traded.  
+
+### Margin Assets
+Only trade the margin asset specified.  
+For example when using "USDT", then BTC**USDT** will be traded but BTC**BUSD** will not.  
+Leave empty to trade all margin assets. `marginAssets: []`    
+WickHunter itself only uses USDT so this is a redundant setting.  
+
+### Google Sheet
+The following Google Sheet is being used: [WH Pairs list - STP Todd](https://docs.google.com/spreadsheets/d/1XWadBbVkbdi5Ub7bFhCcAhqpHiQXBETbeTg644pkTdI/)  
+  
+When using this filter the program will only use the pairs specified by either the permitted or safe account column.  
+Pairs added to _whitelist_ overrides the sheet setting and treats them as being "safe".  
+
+## Exclude List
+Coins on this list will not be quarantined.  
+
 ## Difference with PowerShell autoCoins
-There are changes to the `autoCoins.json` file.  
-Wick Hunter has to be open.  
+- There are changes to the `autoCoins.json` file. Make sure to update this file.  
+- Wick Hunter has to be open.  
 
 ### Missing
 - Writing to a log file.
 - Geo check at startup.
 - Support for v0.6.6
 
-### Added
-- Support for Wick Hunter v1.1.4 using the API.
-- Use Binance API weight limit to pause sending requests so you not over-run the Binance API limit.
-- Use Google Docs API to read [WH Pairs list - STP Todd](https://docs.google.com/spreadsheets/d/1XWadBbVkbdi5Ub7bFhCcAhqpHiQXBETbeTg644pkTdI). [[*](#google-docs-api)]
-
-### Fixes
-- Errors that resulted in the PowerShell script stopping:
-  - Does/should not crash, but instead will skip the run and retry again after set _refresh_.
-  - Sends a message to the Discord WebHook with the error, with the possibility to mention @here so you can immediately intervene.
-- When Binance adds a new coin without enough historical data it skips the coin.
-- If the Binance API returns an error the program continues and does not crash. 
-
-## Google Docs API
-When using this functionality the program will only use the pairs specified by either the permitted or safe account column.
+## Google Docs API  
+Using the Google Docs API Key is optional. If you do not use one the functionality will be the same.  
   
-**Update** You can leave this empty since v0.9.9 of AutoCoins  
-  
-Optionally you can create a Google Docs API Key.  
 See https://developers.google.com/docs/api/how-tos/authorizing#APIKey on how to create the key.  
 (Optional) Restrict the access to the `Google Sheets API` and restrict to the IP Address where AutoCoins is running.  
   
