@@ -90,7 +90,7 @@ The following Google Sheet is being used: [WH Pairs list - STP Todd](https://doc
 When using this filter the program will only use the pairs specified by either the permitted or safe account column.  
 Pairs added to _whitelist_ overrides the sheet setting and treats them as being "safe".  
 
-## Exclude List
+### Exclude List
 Coins on this list will not be quarantined.  
 
 ## Difference with PowerShell autoCoins
