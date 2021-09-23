@@ -109,11 +109,11 @@ type ExchangeInfo struct {
 
 type Symbol struct {
 	Name         string `json:"symbol"`
-	Pair         string `json:"pair"`
 	ContractType string `json:"contractType"`
 	BaseAsset    string `json:"baseAsset"`
 	QuoteAsset   string `json:"quoteAsset"`
 	MarginAsset  string `json:"marginAsset"`
+	OnboardDate  int64  `json:"onboardDate"`
 }
 
 type RateLimit struct {

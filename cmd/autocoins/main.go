@@ -8,13 +8,13 @@ import (
 	"os/signal"
 
 	"github.com/LompeBoer/go-autocoins/internal/autocoins"
-	"github.com/LompeBoer/go-autocoins/internal/binance"
 	"github.com/LompeBoer/go-autocoins/internal/discord"
+	"github.com/LompeBoer/go-autocoins/internal/exchange/binance"
 	"github.com/LompeBoer/go-autocoins/internal/wickhunter"
 )
 
 const (
-	VersionNumber = "0.10.0-pre"
+	VersionNumber = "0.10.0"
 )
 
 func main() {
@@ -53,7 +53,7 @@ func initAutoCoins(settings *autocoins.Settings, storageFilename string) autocoi
 			ProxyUser:          settings.Proxy.Username,
 			ProxyPassword:      settings.Proxy.Password,
 			DebugSaveResponses: false,
-			DebugReadResponses: true,
+			DebugReadResponses: false,
 		}),
 		BotAPI:                     wickhunter.NewAPI(settings.API),
 		MaxFailedSymbolsPercentage: 0.1,

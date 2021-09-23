@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/LompeBoer/go-autocoins/internal/binance"
+	"github.com/LompeBoer/go-autocoins/internal/exchange/binance"
 	"github.com/LompeBoer/go-autocoins/internal/pairslist"
 	"github.com/LompeBoer/go-autocoins/internal/wickhunter"
 )

@@ -1,7 +1,7 @@
 package filters
 
 import (
-	"github.com/LompeBoer/go-autocoins/internal/binance"
+	"github.com/LompeBoer/go-autocoins/internal/exchange/binance"
 	"github.com/LompeBoer/go-autocoins/internal/pairslist"
 )
 

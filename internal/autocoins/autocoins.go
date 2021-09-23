@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LompeBoer/go-autocoins/internal/binance"
+	"github.com/LompeBoer/go-autocoins/internal/exchange/binance"
 	"github.com/LompeBoer/go-autocoins/internal/pairslist"
 	"github.com/LompeBoer/go-autocoins/internal/wickhunter"
 )
@@ -244,13 +244,10 @@ func (a *AutoCoins) CalculateSymbolData(symbol binance.Symbol, prices24Hours []b
 	current4HoursPercent := ((prices1Hour[239] - prices1Hour[0]) * 100) / prices1Hour[239]
 	current24HoursPercent := binance.CalculateCurrent24HourPercent(prices24Hours, symbol.Name)
 
-	kline24Hours, err := a.ExchangeAPI.GetKLine(symbol, 1500, binance.OneDay)
-	if err != nil {
-		c <- a.apiFailResult(symbol)
-		return
-	}
-	age := len(kline24Hours)
-	limit2 := math.Round((float64(age) / 30) + 1)
+	// Get age and max all time high
+	start := time.Unix(symbol.OnboardDate/1000, 0)
+	age := time.Since(start).Hours() / 24.0
+	limit2 := math.Round((age / 30) + 1)
 
 	kline1Month, err := a.ExchangeAPI.GetKLine(symbol, int(limit2), binance.OneMonth)
 	if err != nil {
@@ -260,7 +257,7 @@ func (a *AutoCoins) CalculateSymbolData(symbol binance.Symbol, prices24Hours []b
 	ath := binance.GetMaximumAllTimeHigh(kline1Month)
 	currentPercentageATH := ((ath - prices1Hour[len(prices1Hour)-1]) * 100 / ath)
 
-	c <- a.calculateSymbolResults(symbol, percent1Hour, current4HoursPercent, current24HoursPercent, currentPercentageATH, age, dateTime)
+	c <- a.calculateSymbolResults(symbol, percent1Hour, current4HoursPercent, current24HoursPercent, currentPercentageATH, int(age), dateTime)
 }
 
 func (a *AutoCoins) calculateSymbolResults(symbol binance.Symbol, percent1Hour []float64, current4HoursPercent float64, current24HoursPercent float64, currentPercentageATH float64, age int, dateTime time.Time) SymbolDataObject {

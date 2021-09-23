@@ -1,6 +1,6 @@
 package filters
 
-import "github.com/LompeBoer/go-autocoins/internal/binance"
+import "github.com/LompeBoer/go-autocoins/internal/exchange/binance"
 
 type BlackListFilter struct {
 	BlackList []string

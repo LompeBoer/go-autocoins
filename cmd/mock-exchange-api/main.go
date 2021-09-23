@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/LompeBoer/go-autocoins/internal/binance"
+	"github.com/LompeBoer/go-autocoins/internal/exchange/binance"
 )
 
 func main() {

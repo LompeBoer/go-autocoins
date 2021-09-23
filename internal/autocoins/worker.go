@@ -70,7 +70,7 @@ func (a *AutoCoins) Run() {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Duration(a.Settings.AutoCoins.Refresh) * time.Minute):
+		case <-time.After(time.Duration(a.Settings.Refresh) * time.Minute):
 			a.ReloadConfig()
 		}
 	}

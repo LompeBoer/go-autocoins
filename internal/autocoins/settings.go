@@ -14,7 +14,6 @@ type SettingsAutoCoins struct {
 	CooldownHours  int `json:"cooldownHrs"`
 	MinAthPercent  int `json:"minAthPercent"`
 	MinAge         int `json:"minAge"`
-	Refresh        int `json:"refresh"`
 }
 
 type SettingsFilterGoogleSheet struct {
@@ -48,6 +47,7 @@ type Settings struct {
 	Version        int               `json:"version"`
 	API            string            `json:"api"`
 	Exchange       string            `json:"exchange"`
+	Refresh        int               `json:"refresh"`
 	AutoCoins      SettingsAutoCoins `json:"autoCoins"`
 	Filters        SettingsFilters   `json:"filters"`
 	Discord        SettingsDiscord   `json:"discord"`
@@ -109,6 +109,7 @@ func (s *Settings) LoadDefaultConfig() {
 		Version:  1,
 		API:      "http://localhost:5001",
 		Exchange: "binance",
+		Refresh:  15,
 		AutoCoins: SettingsAutoCoins{
 			Max1hrPercent:  5,
 			Max4hrPercent:  5,
@@ -116,7 +117,6 @@ func (s *Settings) LoadDefaultConfig() {
 			CooldownHours:  4,
 			MinAthPercent:  5,
 			MinAge:         14,
-			Refresh:        15,
 		},
 		Filters: SettingsFilters{
 			BlackList: []string{
@@ -147,8 +147,8 @@ func (s *Settings) LoadDefaultConfig() {
 }
 
 func (s *Settings) ValidateSettings() {
-	if s.AutoCoins.Refresh < 1 {
-		s.AutoCoins.Refresh = 1
+	if s.Refresh < 1 {
+		s.Refresh = 1
 	}
 	if s.API == "" {
 		log.Fatal("No API URL set in config file.")

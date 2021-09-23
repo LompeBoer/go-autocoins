@@ -8,7 +8,7 @@ import (
 const (
 	TickerWeight           = 40.0
 	ExchangeInfoWeight     = 10.0
-	KlineWeight            = 4.35 // This should be 1 according to the Binance API documentation.
+	KlineWeight            = 3.0  // This is combined for all the Kline requests AutoCoins does per symbol.
 	WeightEstimationBuffer = 1.2  // WeightEstimationBuffer percentage of `EstimatedWeightUsage` to use in rate limit.
 	MinimumWeightLimit     = 0.5  // MinimumWeightLimit percentage for minimum weight limit warning.
 	MaximumWeightLimit     = 0.75 // MaximumWeightLimit percentage for maximum weight limit warning.
@@ -44,7 +44,7 @@ func (a *API) PauseForWeightWarning() {
 
 // RateLimitChecks sets the rate limit estimation and pauses execution when estimated weight will be exceeded.
 func (a *API) RateLimitChecks(symbolCount int) {
-	a.EstimatedWeightUsage = int((float64(symbolCount) * 3.0 * KlineWeight) + TickerWeight + ExchangeInfoWeight)
+	a.EstimatedWeightUsage = int((float64(symbolCount) * KlineWeight) + TickerWeight + ExchangeInfoWeight)
 	if a.PreCheckForWeightLimit() {
 		log.Println("Weight warning! Will pause for one minute")
 		a.PauseForWeightWarning()

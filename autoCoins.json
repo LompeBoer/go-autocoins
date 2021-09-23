@@ -2,14 +2,14 @@
     "version": 1,
     "api": "http://localhost:5001",
     "exchange": "binance",
+    "refresh": 15,
     "autoCoins": {
         "max1hrPercent": 5,
         "max4hrPercent": 5,
         "max24hrPercent": 10,
         "cooldownHrs": 4,
         "minAthPercent": 5,
-        "minAge": 14,
-        "refresh": 15
+        "minAge": 14
     },
     "filters": {
         "blackList": ["BTCUSDT", "ETHUSDT", "YFIUSDT", "DEFIUSDT", "DOGEUSDT"],
