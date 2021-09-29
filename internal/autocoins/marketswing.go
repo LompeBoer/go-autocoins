@@ -33,9 +33,9 @@ func CalculateMarketSwing(objects []SymbolDataObject) []MarketSwing {
 		if object.APIFailed {
 			continue
 		}
-		marketSwing1.processObject(object.Percent1HourValue[0], object.Symbol.Name)
-		marketSwing4.processObject(object.Percent4HourValue, object.Symbol.Name)
-		marketSwing24.processObject(object.Percent24HourValue, object.Symbol.Name)
+		marketSwing1.processObject(object.Values.Percent1Hour[0], object.Symbol.Name)
+		marketSwing4.processObject(object.Values.Percent4Hour, object.Symbol.Name)
+		marketSwing24.processObject(object.Values.Percent24Hour, object.Symbol.Name)
 	}
 
 	marketSwing1.calculate()

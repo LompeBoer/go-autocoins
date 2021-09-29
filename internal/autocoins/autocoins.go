@@ -3,10 +3,8 @@ package autocoins
 import (
 	"context"
 	"fmt"
-	"math"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/LompeBoer/go-autocoins/internal/exchange/binance"
 	"github.com/LompeBoer/go-autocoins/internal/pairslist"
@@ -56,7 +54,7 @@ func (a *AutoCoins) GetInfo(pairsList []pairslist.Pair) ([]SymbolDataObject, Sym
 	}
 
 	c := make(chan SymbolDataObject)
-	count := a.CalculateAllSymbolData(symbols, prices24Hours, c)
+	count := a.RetrieveAllSymbolData(symbols, prices24Hours, c)
 
 	objects := []SymbolDataObject{}
 	for i := 0; i < count; i++ {
@@ -131,24 +129,21 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject, positions []wickhunter
 			object.Excluded = true
 		}
 
+		if object.Open || object.Excluded {
+			permitted = append(permitted, object.Symbol.Name)
+		}
+
 		if object.APIFailed {
 			failed = append(failed, object.Symbol.Name)
-
-			if object.Open || object.Excluded {
-				// Open trades should still be permitted.
-				permitted = append(permitted, object.Symbol.Name)
-			}
-		} else if !object.Percent1Hour || !object.Percent24Hour || !object.Percent4Hour || !object.AllTimeHigh || !object.Age {
+		} else if object.ShouldQuarantine() {
 			if object.Open {
 				quarantinedSkipped = append(quarantinedSkipped, object.Symbol.Name)
-				permitted = append(permitted, object.Symbol.Name)
 			} else if object.Excluded {
 				quarantinedExcluded = append(quarantinedExcluded, object.Symbol.Name)
-				permitted = append(permitted, object.Symbol.Name)
 			} else {
 				quarantined = append(quarantined, object.Symbol.Name)
 			}
-		} else {
+		} else if !object.Open && !object.Excluded {
 			permitted = append(permitted, object.Symbol.Name)
 		}
 	}
@@ -204,128 +199,11 @@ func (a *AutoCoins) makeLists(objects []SymbolDataObject, positions []wickhunter
 	}, nil
 }
 
-func (a *AutoCoins) CalculateAllSymbolData(symbols []binance.Symbol, prices24Hours []binance.Ticker, c chan SymbolDataObject) int {
+func (a *AutoCoins) RetrieveAllSymbolData(symbols []binance.Symbol, prices24Hours []binance.Ticker, c chan SymbolDataObject) int {
 	count := 0
 	for _, symbol := range symbols {
-		go a.CalculateSymbolData(symbol, prices24Hours, c)
+		go a.RetrieveSymbolData(symbol, &prices24Hours, c)
 		count++
 	}
 	return count
-}
-
-func (a *AutoCoins) CalculateSymbolData(symbol binance.Symbol, prices24Hours []binance.Ticker, c chan SymbolDataObject) {
-	minCandles := 4
-	if a.Settings.AutoCoins.CooldownHours >= 4 {
-		minCandles = a.Settings.AutoCoins.CooldownHours
-	}
-	dateTime := time.Now()
-	limit := minCandles * 60
-	kline1Minute, err := a.ExchangeAPI.GetKLine(symbol, limit, binance.OneMinute)
-	if err != nil {
-		c <- a.apiFailResult(symbol)
-		return
-	}
-	prices1Hour, err := binance.Get1HourPrices(kline1Minute)
-	if err != nil {
-		c <- a.apiFailResult(symbol)
-		return
-	}
-	percent1Hour := []float64{}
-	for i := 1; i < minCandles+1; i++ {
-		end := i*60 - 1
-		start := end - 59
-		if end > len(prices1Hour)-1 {
-			c <- a.apiFailResult(symbol)
-			return
-		}
-		percent := ((prices1Hour[end] - prices1Hour[start]) * 100) / prices1Hour[end]
-		percent1Hour = append(percent1Hour, percent)
-	}
-	current4HoursPercent := ((prices1Hour[239] - prices1Hour[0]) * 100) / prices1Hour[239]
-	current24HoursPercent := binance.CalculateCurrent24HourPercent(prices24Hours, symbol.Name)
-
-	// Get age and max all time high
-	start := time.Unix(symbol.OnboardDate/1000, 0)
-	age := time.Since(start).Hours() / 24.0
-	limit2 := math.Round((age / 30) + 1)
-
-	kline1Month, err := a.ExchangeAPI.GetKLine(symbol, int(limit2), binance.OneMonth)
-	if err != nil {
-		c <- a.apiFailResult(symbol)
-		return
-	}
-	ath := binance.GetMaximumAllTimeHigh(kline1Month)
-	currentPercentageATH := ((ath - prices1Hour[len(prices1Hour)-1]) * 100 / ath)
-
-	c <- a.calculateSymbolResults(symbol, percent1Hour, current4HoursPercent, current24HoursPercent, currentPercentageATH, int(age), dateTime)
-}
-
-func (a *AutoCoins) calculateSymbolResults(symbol binance.Symbol, percent1Hour []float64, current4HoursPercent float64, current24HoursPercent float64, currentPercentageATH float64, age int, dateTime time.Time) SymbolDataObject {
-	// 1 hour percent
-	x := a.Settings.AutoCoins.CooldownHours - 1
-	values1HrPercent := percent1Hour[:x]
-	max := 0.0
-	for _, val := range values1HrPercent {
-		v := math.Abs(val)
-		if v > max {
-			max = v
-		}
-	}
-	result1HrPercent := max < float64(a.Settings.AutoCoins.Max1hrPercent)
-
-	// 4 hour percent
-	result4HrPercent := math.Abs(current4HoursPercent) < float64(a.Settings.AutoCoins.Max4hrPercent)
-	values4HrPercent := current4HoursPercent
-
-	// 24 hour percent
-	result24HrPercent := math.Abs(current24HoursPercent) < float64(a.Settings.AutoCoins.Max24hrPercent)
-	values24HrPercent := current24HoursPercent
-
-	resultAth := currentPercentageATH > float64(a.Settings.AutoCoins.MinAthPercent)
-	valuesAth := currentPercentageATH
-
-	resultAge := age > a.Settings.AutoCoins.MinAge
-	valueAge := age
-
-	return SymbolDataObject{
-		Symbol:             symbol,
-		Percent1Hour:       result1HrPercent,
-		Percent1HourValue:  values1HrPercent,
-		Percent4Hour:       result4HrPercent,
-		Percent4HourValue:  values4HrPercent,
-		Percent24Hour:      result24HrPercent,
-		Percent24HourValue: values24HrPercent,
-		AllTimeHigh:        resultAth,
-		AllTimeHighValue:   valuesAth,
-		Age:                resultAge,
-		AgeValue:           valueAge,
-		Open:               false,
-		Time:               dateTime,
-		APIFailed:          false,
-	}
-}
-
-func (a *AutoCoins) apiFailResult(symbol binance.Symbol) SymbolDataObject {
-	return SymbolDataObject{
-		Symbol:    symbol,
-		APIFailed: true,
-	}
-}
-
-type SymbolDataObject struct {
-	Symbol             binance.Symbol `json:"symbol"`
-	Percent1Hour       bool           `json:"perc1hr"`
-	Percent1HourValue  []float64      `json:"perc1hrVal"`
-	Percent4Hour       bool           `json:"perc4hr"`
-	Percent4HourValue  float64        `json:"perc4hrVal"`
-	Percent24Hour      bool           `json:"perc24hr"`
-	Percent24HourValue float64        `json:"perc24hrVal"`
-	AllTimeHigh        bool           `json:"Ath"`
-	AllTimeHighValue   float64        `json:"AthVal"`
-	Age                bool           `json:"Age"`
-	AgeValue           int            `json:"AgeVal"`
-	Open               bool           `json:"Open"`
-	Time               time.Time      `json:"dateTime"`
-	APIFailed          bool           `json:"apiFailed"`
-	Excluded           bool           `json:"excluded"`
 }

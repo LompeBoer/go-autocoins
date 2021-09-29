@@ -12,20 +12,24 @@ import (
 func TestMakeLists(t *testing.T) {
 	objects := []SymbolDataObject{
 		{
-			Symbol:             binance.Symbol{Name: "TEST"},
-			Percent1Hour:       true,
-			Percent1HourValue:  []float64{0, 1, 2, 4},
-			Percent4Hour:       true,
-			Percent4HourValue:  0.0,
-			Percent24Hour:      true,
-			Percent24HourValue: 0.0,
-			AllTimeHigh:        true,
-			AllTimeHighValue:   0.0,
-			Age:                true,
-			AgeValue:           0.0,
-			Open:               false,
-			Time:               time.Now(),
-			APIFailed:          false,
+			Symbol:    binance.Symbol{Name: "TEST"},
+			Open:      false,
+			Time:      time.Now(),
+			APIFailed: false,
+			Result: SymbolDataResult{
+				Percent1Hour:  true,
+				Percent4Hour:  true,
+				Percent24Hour: true,
+				AllTimeHigh:   true,
+				Age:           true,
+			},
+			Values: SymbolDataValues{
+				Percent1Hour:  []float64{0, 1, 2, 4},
+				Percent4Hour:  0.0,
+				Percent24Hour: 0.0,
+				AllTimeHigh:   0.0,
+				Age:           0.0,
+			},
 		},
 	}
 	positions := []wickhunter.Position{
